@@ -1,0 +1,38 @@
+# 工作流的名称，会显示在 GitHub Actions 的 UI 界面上
+name: Java CI with Maven
+
+# 触发工作流的事件
+on:
+  push:
+    branches: [ "main", "dev" ] # 当代码被 push到 main 或 dev 分支时触发
+  pull_request:
+    branches: [ "main", "dev" ] # 当有 pull request 提交到 main 或 dev 分支时触发
+
+# 工作流包含的任务（jobs）
+jobs:
+  # 任务的 ID，可以自定义，这里我们叫它 "build"
+  build:
+    # 指定运行此任务的虚拟机环境，"ubuntu-latest" 是一个常用的、预装了很多工具的 Linux 环境
+    runs-on: ubuntu-latest
+
+    # 任务的执行步骤（steps）
+    steps:
+      # 第一步：检出你的代码
+      # 使用官方的 actions/checkout@v3 动作
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 第二步：设置 Java 环境
+      # 使用了官方的 actions/setup-java@v4 动作
+      # 根据你的项目需求，可以修改 'java-version'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven' # 启用 Maven 依赖缓存，可以加速后续构建
+
+      # 第三步：使用 Maven 构建项目
+      # 运行 mvn clean package 命令来编译和打包项目 <sup data-citation='{&quot;id&quot;:1,&quot;url&quot;:&quot;/Users/suki/Desktop/分销系统/md 文件/instructions.md&quot;,&quot;title&quot;:&quot;/Users/suki/Desktop/分销系统/md 文件/instructions.md&quot;,&quot;content&quot;:&quot;Jenkins + GitHub Actions + ACK + ACR 日志监控 ELK Loki + Prometheus + Grafana（可选） 🚀 启动方式 1 构建所有服务： mvn clean package 2 启动所有服务： docker-compose up --build -d 3 访问接口文档： 核心业务流程 销售注册 → 生成邀请码邀请代理 代理注册 → 提交客资（手&quot;}'>1</sup>
+      - name: Build with Maven
+        run: mvn clean package
