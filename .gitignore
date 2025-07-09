@@ -93,3 +93,4 @@ yarn-error.log*
 *.tar.gz
 *.rar
 *.7z
+*.sh
