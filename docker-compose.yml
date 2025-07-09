@@ -1,0 +1,127 @@
+version: "3.9"
+
+services:
+
+  ## 🛢️ 数据库服务
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: distribution
+      MYSQL_CHARSET: utf8mb4
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    restart: always
+
+  ## ⚡ Redis 缓存服务
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    restart: always
+
+  ## 📚 Nacos 注册中心
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    container_name: nacos
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: mysql
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_DB_NAME: nacos_config
+      MYSQL_SERVICE_USER: root
+      MYSQL_SERVICE_PASSWORD: root123
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+    depends_on:
+      - mysql
+    ports:
+      - "8848:8848"
+    restart: always
+
+  ## 📩 RabbitMQ 消息队列
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"  # 管理页面
+    restart: always
+
+  ## 🌐 API 网关（Spring Cloud Gateway 示例）
+  api-gateway:
+    build:
+      context: ./gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - nacos
+    restart: always
+
+  ## 🧍 Auth Service 用户认证服务
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    depends_on:
+      - mysql
+      - nacos
+    restart: always
+
+  ## 💼 Lead Service 客资服务
+  lead-service:
+    build:
+      context: ./lead-service
+    container_name: lead-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - mysql
+      - nacos
+    restart: always
+
+  ## 💰 Deal Service 成交与佣金
+  deal-service:
+    build:
+      context: ./deal-service
+    container_name: deal-service
+    ports:
+      - "8083:8083"
+    depends_on:
+      - mysql
+      - nacos
+      - rabbitmq
+    restart: always
+
+  ## 📦 Promotion Service 推广任务
+  promotion-service:
+    build:
+      context: ./promotion-service
+    container_name: promotion-service
+    ports:
+      - "8084:8084"
+    depends_on:
+      - mysql
+      - nacos
+    restart: always
+
+  ## 📊 Swagger 文档（可选）
+  api-docs:
+    build:
+      context: ./api-docs
+    container_name: api-docs
+    ports:
+      - "8090:8090"
+    restart: always
