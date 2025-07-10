@@ -249,10 +249,10 @@ INSERT INTO agent_levels (name, commission_rate, min_gmv, max_gmv, level_order) 
 ('SV1', 5.00, 0.00, 9999.99, 1),
 ('SV2', 6.00, 10000.00, 19999.99, 2),
 ('SV3', 7.00, 20000.00, 39999.99, 3),
-('SV4', 8.00, 400000.00, 59999.99, 4),
-('SV5', 9.00, 600000.00, 79999.99, 5),
-('SV6', 10.00, 800000.00, NULL, 6);
+('SV4', 8.00, 40000.00, 59999.99, 4),
+('SV5', 9.00, 60000.00, 79999.99, 5),
+('SV6', 10.00, 80000.00, NULL, 6);
 
 -- 创建超级管理员账户
 INSERT INTO users (phone, password, role, status) VALUES
-('13800138000', '10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'super_admin', 'active');
+('13800138000', '$2b10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'super_admin', 'active');
