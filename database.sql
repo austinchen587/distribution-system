@@ -1,3 +1,14 @@
+-- 删除现有表（按依赖关系倒序删除）
+DROP TABLE IF EXISTS commissions;
+DROP TABLE IF EXISTS deals;
+DROP TABLE IF EXISTS promotions;
+DROP TABLE IF EXISTS customer_leads;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS agent_level_audit;
+DROP TABLE IF EXISTS user_agent_level;
+DROP TABLE IF EXISTS agent_levels;
+DROP TABLE IF EXISTS users;
+
 -- 1. 用户表（含销售和代理）
 CREATE TABLE users (
 id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -39,7 +50,7 @@ level_order INT NOT NULL UNIQUE COMMENT '等级顺序',
 
 -- 索引
 INDEX idx_level_order (level_order),
-INDEX idx_is_active (is_active),
+
 
 -- 数据完整性约束
 CONSTRAINT chk_commission_rate CHECK (commission_rate >= 0 AND commission_rate <= 100),
@@ -75,8 +86,7 @@ FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL,
 
 -- 索引
 INDEX idx_level_id (level_id),
-INDEX idx_assigned_by (assigned_by),
-INDEX idx_status (status),
+INDEX idx_assigned_by (assigned_by),    
 INDEX idx_effective_date (effective_date),
 INDEX idx_expiry_date (expiry_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户代理等级关联表';
