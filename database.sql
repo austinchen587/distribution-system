@@ -1,6 +1,3 @@
-
-
-
 -- ========================================
 -- 清理环境：按依赖关系倒序删除表
 -- ========================================
@@ -104,153 +101,157 @@ CREATE TABLE `user_agent_level` (
 
 
 -- 4. 等级审核记录表
-CREATE TABLE agent_level_audit (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id BIGINT NOT NULL COMMENT '用户ID',
-    before_level INT DEFAULT NULL COMMENT '之前等级',
-    after_level INT NOT NULL COMMENT '之后等级',
-    status ENUM('approved','rejected','pending') DEFAULT 'pending' COMMENT '审核状态',
-    audit_by BIGINT DEFAULT NULL COMMENT '审核人',
-    audit_feedback TEXT DEFAULT NULL COMMENT '审核反馈',
-    audited_at DATETIME DEFAULT NULL COMMENT '审核时间',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+CREATE TABLE `agent_level_audit` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, -- OPTIMIZATION: 主键使用 UNSIGNED。
+    `user_id` BIGINT UNSIGNED NOT NULL COMMENT '申请人用户ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `before_level_id` INT UNSIGNED DEFAULT NULL COMMENT '调整前等级ID', -- OPTIMIZATION: 统一命名为 id 后缀，并使用 UNSIGNED。
+    `after_level_id` INT UNSIGNED NOT NULL COMMENT '申请调整后等级ID', -- OPTIMIZATION: 统一命名为 id 后缀，并使用 UNSIGNED。
+    `status` ENUM('approved','rejected','pending') NOT NULL DEFAULT 'pending' COMMENT '审核状态', -- OPTIMIZATION: 明确 NOT NULL。
+    `audit_by` BIGINT UNSIGNED DEFAULT NULL COMMENT '审核人ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `audit_feedback` TEXT DEFAULT NULL COMMENT '审核反馈或备注',
+    `audited_at` TIMESTAMP DEFAULT NULL COMMENT '审核时间', -- OPTIMIZATION: 使用 TIMESTAMP。
+
+    -- 审计字段
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间', -- OPTIMIZATION: 增加 updated_at 字段保持一致性。
 
     -- 外键约束
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (after_level) REFERENCES agent_levels(id) ON DELETE RESTRICT,
-    FOREIGN KEY (audit_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`before_level_id`) REFERENCES `agent_levels`(`id`) ON DELETE RESTRICT, -- OPTIMIZATION: 增加 before_level_id 的外键约束。
+    FOREIGN KEY (`after_level_id`) REFERENCES `agent_levels`(`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`audit_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
 
     -- 索引
-    INDEX idx_user_id (user_id),
-    INDEX idx_status (status),
-    INDEX idx_audit_by (audit_by),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='等级审核记录表';
+    INDEX `idx_user_status` (`user_id`, `status`) -- OPTIMIZATION: 复合索引，优化“查询某用户的审核记录”场景。
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='等级变更审核记录表';
 
 
 
--- 5. 客户资源表
-CREATE TABLE customer_leads (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    phone VARCHAR(20) UNIQUE COMMENT '客户手机号',
-    wechat VARCHAR(64) DEFAULT NULL COMMENT '微信号',
-    qq VARCHAR(64) DEFAULT NULL COMMENT 'QQ号',
-    submitted_by BIGINT NOT NULL COMMENT '提交人ID',
-    assigned_sales_id BIGINT DEFAULT NULL COMMENT '分配销售ID',
-    status ENUM('new', 'contacted', 'interested', 'closed', 'invalid') DEFAULT 'new' COMMENT '状态',
-    follow_up_notes TEXT DEFAULT NULL COMMENT '跟进备注',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+-- 5. 客户资源表 (Leads)
+CREATE TABLE `customer_leads` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, -- OPTIMIZATION: 主键使用 UNSIGNED。
+    `phone` VARCHAR(20) NOT NULL UNIQUE COMMENT '客户手机号 (作为主要标识应 NOT NULL)', -- OPTIMIZATION: 手机号作为核心字段，应为 NOT NULL。
+    `wechat` VARCHAR(64) DEFAULT NULL COMMENT '微信号',
+    `qq` VARCHAR(64) DEFAULT NULL COMMENT 'QQ号',
+    `submitted_by` BIGINT UNSIGNED NOT NULL COMMENT '提交人ID (销售/代理)', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `assigned_sales_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '跟进的销售ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `status` ENUM('new', 'contacted', 'interested', 'closed', 'invalid') NOT NULL DEFAULT 'new' COMMENT '线索状态', -- OPTIMIZATION: 明确 NOT NULL。
+    `follow_up_notes` TEXT DEFAULT NULL COMMENT '跟进备注',
+    
+    -- 审计字段
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
 
     -- 外键约束
-    FOREIGN KEY (submitted_by) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (assigned_sales_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (`submitted_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`assigned_sales_id`) REFERENCES `users`(`id`) ON DELETE SET NULL,
 
     -- 索引
-    INDEX idx_phone (phone),
-    INDEX idx_submitted_by (submitted_by),
-    INDEX idx_assigned_sales_id (assigned_sales_id),
-    INDEX idx_status (status),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='客户资源表';
+    -- OPTIMIZATION: `phone` 已有 UNIQUE 约束，自带索引。
+    INDEX `idx_sales_status` (`assigned_sales_id`, `status`) -- OPTIMIZATION: 复合索引，核心场景：销售查看自己名下各种状态的线索。
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='客户资源（线索）表';
 
 
 
 -- 6. 商品信息表
-CREATE TABLE products (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL COMMENT '商品名称',
-    description TEXT DEFAULT NULL COMMENT '商品描述',
-    price DECIMAL(10,2) NOT NULL COMMENT '商品价格',
-    status ENUM('active', 'inactive') DEFAULT 'active' COMMENT '商品状态',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+CREATE TABLE `products` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, -- OPTIMIZATION: 主键使用 UNSIGNED。
+    `name` VARCHAR(100) NOT NULL COMMENT '商品名称',
+    `description` TEXT DEFAULT NULL COMMENT '商品描述',
+    `price` DECIMAL(10,2) NOT NULL COMMENT '商品价格',
+    `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active' COMMENT '商品状态: active-上架, inactive-下架', -- OPTIMIZATION: 明确 NOT NULL。
+    
+    -- 审计字段
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
 
     -- 索引
-    INDEX idx_status (status),
-    INDEX idx_price (price)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品信息表';
+    INDEX `idx_status` (`status`),
+    
+    -- 数据完整性约束
+    CONSTRAINT `chk_price_positive` CHECK (`price` >= 0) -- OPTIMIZATION: 增加价格非负约束。
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品信息表';
 
 
 
 -- 7. 成交记录表
-CREATE TABLE deals (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    customer_id BIGINT NOT NULL COMMENT '客户ID',
-    product_id BIGINT NOT NULL COMMENT '商品ID',
-    sales_id BIGINT NOT NULL COMMENT '销售ID',
-    amount DECIMAL(10,2) NOT NULL COMMENT '成交金额',
-    status ENUM('pending', 'completed', 'refunded') DEFAULT 'completed' COMMENT '状态',
-    deal_date DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '成交时间',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+CREATE TABLE `deals` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, -- OPTIMIZATION: 主键使用 UNSIGNED。
+    `customer_lead_id` BIGINT UNSIGNED NOT NULL COMMENT '客户线索ID', -- OPTIMIZATION: 命名更精确，并使用 UNSIGNED。
+    `product_id` BIGINT UNSIGNED NOT NULL COMMENT '商品ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `sales_id` BIGINT UNSIGNED NOT NULL COMMENT '成交销售ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `deal_amount` DECIMAL(10,2) NOT NULL COMMENT '成交金额', -- OPTIMIZATION: 命名统一为 deal_amount，与 reward_amount 区分。
+    `status` ENUM('pending', 'completed', 'refunded') NOT NULL DEFAULT 'completed' COMMENT '状态', -- OPTIMIZATION: 明确 NOT NULL。
+    `deal_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '成交时间(业务时间)', -- OPTIMIZATION: 命名统一为 xxx_at，使用 TIMESTAMP。
+
+    -- 审计字段
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间(记录时间)', -- OPTIMIZATION: 注释清晰区分业务时间和记录时间。
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间', -- OPTIMIZATION: 增加 updated_at 保持一致性。
 
     -- 外键约束
-    FOREIGN KEY (customer_id) REFERENCES customer_leads(id) ON DELETE RESTRICT,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
-    FOREIGN KEY (sales_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (`customer_lead_id`) REFERENCES `customer_leads`(`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`sales_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
 
     -- 索引
-    INDEX idx_customer_id (customer_id),
-    INDEX idx_product_id (product_id),
-    INDEX idx_sales_id (sales_id),
-    INDEX idx_status (status),
-    INDEX idx_deal_date (deal_date),
-    INDEX idx_amount (amount)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='成交记录表';
+    INDEX `idx_sales_status_date` (`sales_id`, `status`, `deal_at`) -- OPTIMIZATION: 强大复合索引，满足“查询某销售某段时间内某种状态的订单”核心需求。
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='成交记录表';
 
 
 
 -- 8. 佣金记录表
-CREATE TABLE commissions (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id BIGINT NOT NULL COMMENT '用户ID',
-    deal_id BIGINT NOT NULL COMMENT '成交记录ID',
-    level ENUM('direct', 'indirect') NOT NULL COMMENT '佣金层级',
-    rate DECIMAL(5,2) NOT NULL COMMENT '佣金比例',
-    amount DECIMAL(10,2) NOT NULL COMMENT '佣金金额',
-    settlement_month VARCHAR(7) NOT NULL COMMENT '佣金结算月份 (格式: YYYY-MM)',
-    status ENUM('pending', 'paid', 'cancelled') DEFAULT 'pending' COMMENT '状态',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    
+CREATE TABLE `commissions` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, -- OPTIMIZATION: 主键使用 UNSIGNED。
+    `user_id` BIGINT UNSIGNED NOT NULL COMMENT '佣金获得者ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `deal_id` BIGINT UNSIGNED NOT NULL COMMENT '关联的成交记录ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `commission_level` ENUM('direct', 'indirect') NOT NULL COMMENT '佣金层级', -- OPTIMIZATION: 命名统一为xxx_level，明确 NOT NULL。
+    `commission_rate` DECIMAL(5,2) NOT NULL COMMENT '计算时使用的佣金比例(%)', -- OPTIMIZATION: 命名统一为 xxx_rate。
+    `commission_amount` DECIMAL(10,2) NOT NULL COMMENT '佣金金额', -- OPTIMIZATION: 命名统一为 xxx_amount。
+    `settlement_month` VARCHAR(7) NOT NULL COMMENT '佣金结算月份 (格式: YYYY-MM)',
+    `status` ENUM('pending', 'paid', 'cancelled') NOT NULL DEFAULT 'pending' COMMENT '状态', -- OPTIMIZATION: 明确 NOT NULL。
+
+    -- 审计字段
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',  -- OPTIMIZATION: 增加 updated_at 保持一致性。
 
     -- 外键约束
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (deal_id) REFERENCES deals(id) ON DELETE RESTRICT,
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`deal_id`) REFERENCES `deals`(`id`) ON DELETE RESTRICT,
+
+    -- 数据完整性约束
+    CONSTRAINT `chk_commission_amount_positive` CHECK (`commission_amount` >= 0), -- OPTIMIZATION: 增加佣金非负约束。
 
     -- 索引
-    INDEX idx_user_id (user_id),
-    INDEX idx_deal_id (deal_id),
-    INDEX idx_status (status),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='佣金记录表';
+    INDEX `idx_user_status_month` (`user_id`, `status`, `settlement_month`) -- OPTIMIZATION: 核心复合索引，用于“查询某用户某月的待结算佣金”。
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='佣金记录表';
 
 
 
 -- 9. 推广任务表
-CREATE TABLE promotions (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    agent_id BIGINT NOT NULL COMMENT '代理ID',
-    platform ENUM('douyin', 'xiaohongshu', 'kuaishou') NOT NULL COMMENT '平台',
-    type ENUM('text', 'video', 'real_person') DEFAULT 'text' COMMENT '类型',
-    url TEXT DEFAULT NULL COMMENT '推广链接',
-    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' COMMENT '状态',
-    audit_by BIGINT DEFAULT NULL COMMENT '审核人',
-    audit_reason TEXT DEFAULT NULL COMMENT '审核原因',
-    reward_amount DECIMAL(10,2) DEFAULT 0.00 COMMENT '奖励金额',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    audited_at DATETIME DEFAULT NULL COMMENT '审核时间',
+CREATE TABLE `promotions` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, -- OPTIMIZATION: 主键使用 UNSIGNED。
+    `agent_id` BIGINT UNSIGNED NOT NULL COMMENT '代理ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `platform` ENUM('douyin', 'xiaohongshu', 'kuaishou') NOT NULL COMMENT '推广平台', -- OPTIMIZATION: 明确 NOT NULL。
+    `task_type` ENUM('text', 'video', 'real_person') NOT NULL DEFAULT 'text' COMMENT '任务类型', -- OPTIMIZATION: 命名为 task_type 避免与关键字 type 冲突，明确 NOT NULL。
+    `url` TEXT DEFAULT NULL COMMENT '推广作品链接',
+    `status` ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending' COMMENT '审核状态', -- OPTIMIZATION: 明确 NOT NULL。
+    `audit_by` BIGINT UNSIGNED DEFAULT NULL COMMENT '审核人ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `audit_reason` TEXT DEFAULT NULL COMMENT '审核原因或反馈',
+    `reward_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '任务奖励金额', -- OPTIMIZATION: 明确 NOT NULL。
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `audited_at` TIMESTAMP DEFAULT NULL COMMENT '审核时间',
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',  -- OPTIMIZATION: 增加 updated_at 保持一致性。
 
     -- 外键约束
-    FOREIGN KEY (agent_id) REFERENCES users(id) ON DELETE RESTRICT,
-    FOREIGN KEY (audit_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (`agent_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`audit_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+
+    -- 数据完整性约束
+    CONSTRAINT `chk_reward_amount_positive` CHECK (`reward_amount` >= 0), -- OPTIMIZATION: 增加奖励金额非负约束。
 
     -- 索引
-    INDEX idx_agent_id (agent_id),
-    INDEX idx_platform (platform),
-    INDEX idx_status (status),
-    INDEX idx_audit_by (audit_by),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='推广任务表';
+    INDEX `idx_agent_status` (`agent_id`, `status`) -- OPTIMIZATION: 复合索引，用于代理查询自己的推广任务。
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='推广任务表';
 
 -- ========================================
 -- 初始化数据
