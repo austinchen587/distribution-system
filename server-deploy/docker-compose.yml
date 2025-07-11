@@ -117,11 +117,11 @@ services:
   #     - nacos
   #   restart: always
 
-  ## 📊 Swagger 文档（可选）
-  api-docs:
-    build:
-      context: ./api-docs
-    container_name: api-docs
-    ports:
-      - "8090:8090"
-    restart: always
+  # ## 📊 Swagger 文档（可选）
+  # api-docs:
+  #   build:
+  #     context: ./api-docs
+  #   container_name: api-docs
+  #   ports:
+  #     - "8090:8090"
+  #   restart: always
