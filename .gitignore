@@ -16,7 +16,7 @@ Thumbs.db
 
 ### IDE 和编辑器配置 (IDE and Editor configuration) ###
 # Visual Studio Code
-.vscode/*
+.vscode/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
@@ -40,8 +40,66 @@ env/
 *.pyc
 
 # Java
-/target/
+target/
 *.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# 备份文件
+*.bak
+*.backup
+*~
+
+# Spring Boot
+spring-boot-*.log
+.gradle
+build/
+
+# IntelliJ IDEA
+*.iml
+*.ipr
+*.iws
+out/
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Redis dump
+dump.rdb
+
+# PromptX
+.promptx/
+
+# 临时脚本
+start-without-maven.sh
+build-and-run.sh
+manual-start.sh
 
 ### 日志和临时文件 (Logs and temporary files) ###
 *.log
@@ -71,8 +129,8 @@ out/
 .cursor/
 
 # claude code
-.claude-code/
-.claude/
+# .claude-code/
+# .claude/
 
 # copilot
 .copilot/
