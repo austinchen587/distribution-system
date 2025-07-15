@@ -180,7 +180,7 @@ CREATE TABLE `deals` (
     `customer_lead_id` BIGINT UNSIGNED NOT NULL COMMENT '客户线索ID', -- OPTIMIZATION: 命名更精确，并使用 UNSIGNED。
     `product_id` BIGINT UNSIGNED NOT NULL COMMENT '商品ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
     `sales_id` BIGINT UNSIGNED NOT NULL COMMENT '成交销售ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
-    `sales_owner_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '成交归属销售ID（系统根据代理关系推导）' -- OPTIMIZATION: 新增成交归属销售 id 字段。
+    `sales_owner_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '成交归属销售ID（系统根据代理关系推导）', -- OPTIMIZATION: 新增成交归属销售 id 字段。
     `deal_amount` DECIMAL(10,2) NOT NULL COMMENT '成交金额', -- OPTIMIZATION: 命名统一为 deal_amount，与 reward_amount 区分。
     `status` ENUM('pending', 'completed', 'refunded') NOT NULL DEFAULT 'completed' COMMENT '状态', -- OPTIMIZATION: 明确 NOT NULL。
     `deal_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '成交时间(业务时间)', -- OPTIMIZATION: 命名统一为 xxx_at，使用 TIMESTAMP。
