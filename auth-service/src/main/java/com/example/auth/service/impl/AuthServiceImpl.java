@@ -3,12 +3,16 @@ package com.example.auth.service.impl;
 import com.example.auth.controller.AuthController.LoginRequest;
 import com.example.auth.controller.AuthController.LoginResponse;
 import com.example.auth.controller.AuthController.RegisterRequest;
+import com.example.auth.controller.AuthController.CreateSubordinateRequest;
+import com.example.auth.controller.AuthController.CreateSubordinateResponse;
 import com.example.auth.entity.User;
 import com.example.auth.mapper.UserMapper;
 import com.example.auth.service.AuthService;
+import com.example.common.dto.ApiResponse;
 import com.example.common.enums.UserRole;
 import com.example.common.exception.BusinessException;
 import com.example.common.utils.JwtUtils;
+import com.example.common.utils.UserContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -221,6 +225,100 @@ public class AuthServiceImpl implements AuthService {
         }
         
         log.info("用户退出登录：userId={}", userId);
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ApiResponse<CreateSubordinateResponse> createSubordinateBySuperior(CreateSubordinateRequest request) {
+        log.info("快速创建下级用户请求：phone={}, targetRole={}", request.getPhone(), request.getRole());
+        
+        // 1. 获取当前登录用户信息
+        String currentUserId = UserContextHolder.getCurrentUserId();
+        String currentUserRole = UserContextHolder.getCurrentUserRole();
+        
+        if (currentUserId == null || currentUserRole == null) {
+            throw new BusinessException("获取当前用户信息失败");
+        }
+        
+        User currentUser = userMapper.selectById(Long.valueOf(currentUserId));
+        if (currentUser == null) {
+            throw new BusinessException("当前用户不存在");
+        }
+        
+        // 2. 验证权限：检查是否有权创建目标角色
+        UserRole creatorRole = UserRole.fromCode(currentUserRole.toLowerCase());
+        UserRole targetRole = UserRole.fromCode(request.getRole().toLowerCase());
+        
+        if (!canCreateRole(creatorRole, targetRole)) {
+            throw new BusinessException("权限不足，无法创建该角色的用户");
+        }
+        
+        // 3. 验证手机号格式
+        if (!isValidPhone(request.getPhone())) {
+            throw new BusinessException("手机号格式不正确");
+        }
+        
+        // 4. 检查手机号是否已注册
+        if (userMapper.existsByPhone(request.getPhone())) {
+            throw new BusinessException("该手机号已注册");
+        }
+        
+        // 5. 创建用户
+        User newUser = new User();
+        newUser.setPhone(request.getPhone());
+        newUser.setPassword(passwordEncoder.encode(request.getPassword()));
+        newUser.setNickname(request.getNickname() != null ? request.getNickname() : "用户" + request.getPhone().substring(7));
+        newUser.setInviteCode(generateInviteCode());
+        newUser.setRole(targetRole);
+        newUser.setInviterId(currentUser.getId()); // 自动绑定创建者为邀请人
+        newUser.setStatus("active");
+        newUser.setTotalGmv(BigDecimal.ZERO);
+        
+        userMapper.insert(newUser);
+        
+        // 6. 构建响应
+        CreateSubordinateResponse response = new CreateSubordinateResponse();
+        response.setUserId(newUser.getId());
+        response.setPhone(newUser.getPhone());
+        response.setNickname(newUser.getNickname());
+        response.setRole(newUser.getRole().getCode());
+        response.setInviteCode(newUser.getInviteCode());
+        response.setInviterId(currentUser.getId());
+        response.setInviterNickname(currentUser.getNickname());
+        
+        log.info("下级用户创建成功：userId={}, phone={}, role={}, inviterId={}", 
+                newUser.getId(), newUser.getPhone(), newUser.getRole(), currentUser.getId());
+        
+        return ApiResponse.success(response);
+    }
+    
+    /**
+     * 检查创建者是否有权限创建目标角色
+     * 
+     * @param creatorRole 创建者角色
+     * @param targetRole 目标角色
+     * @return 是否有权限
+     */
+    private boolean canCreateRole(UserRole creatorRole, UserRole targetRole) {
+        switch (creatorRole) {
+            case SUPER_ADMIN:
+                // 超级管理员可以创建任何角色
+                return true;
+            case DIRECTOR:
+                // 销售总监可以创建：组长、销售、代理
+                return targetRole == UserRole.LEADER || targetRole == UserRole.SALES || targetRole == UserRole.AGENT;
+            case LEADER:
+                // 销售组长可以创建：销售、代理
+                return targetRole == UserRole.SALES || targetRole == UserRole.AGENT;
+            case SALES:
+                // 销售只能创建：代理
+                return targetRole == UserRole.AGENT;
+            case AGENT:
+                // 代理不能创建任何用户
+                return false;
+            default:
+                return false;
+        }
     }
     
     /**
