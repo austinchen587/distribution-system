@@ -1,11 +1,13 @@
 package com.example.auth.controller;
 
+import com.example.auth.entity.User;
 import com.example.auth.service.AuthService;
 import com.example.auth.service.SmsService;
 import com.example.common.annotation.RequireRole;
 import com.example.common.dto.ApiResponse;
 import com.example.common.enums.UserRole;
 import com.example.common.utils.JwtUtils;
+import com.example.common.utils.UserContextHolder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -54,21 +56,13 @@ public class AuthController {
     @PostMapping("/register")
     public com.example.common.dto.ApiResponse<RegisterResponse> register(
             @Valid @RequestBody RegisterRequest request) {
+        LoginResponse loginResponse = authService.register(request);
         
-        // 1. 验证验证码
-        if (!smsService.verifyCode(request.getPhone(), request.getCode())) {
-            return com.example.common.dto.ApiResponse.error(400, "验证码错误或已过期");
-        }
-        
-        // TODO: 2. 检查手机号是否已注册
-        // TODO: 3. 验证邀请码（如果是代理注册）
-        // TODO: 4. 创建用户账户
-        // TODO: 5. 分配默认角色和权限
-        
+        // 转换为RegisterResponse
         RegisterResponse response = new RegisterResponse();
-        response.setUserId(1L);
-        response.setPhone(request.getPhone());
-        response.setRole(request.getRole());
+        response.setUserId(loginResponse.getUserId());
+        response.setPhone(loginResponse.getPhone());
+        response.setRole(loginResponse.getRole());
         response.setMessage("注册成功");
         
         return com.example.common.dto.ApiResponse.success(response);
@@ -82,18 +76,7 @@ public class AuthController {
     @PostMapping("/login")
     public com.example.common.dto.ApiResponse<LoginResponse> login(
             @Valid @RequestBody LoginRequest request) {
-        // TODO: 实现登录逻辑，验证用户名密码
-        
-        // 生成JWT token
-        String token = JwtUtils.generateToken("1", UserRole.SALES.name());
-        
-        LoginResponse response = new LoginResponse();
-        response.setToken(token);
-        response.setUserId(1L);
-        response.setPhone(request.getPhone());
-        response.setRole(UserRole.SALES.name());
-        response.setNickname("测试用户");
-        
+        LoginResponse response = authService.login(request);
         return com.example.common.dto.ApiResponse.success(response);
     }
     
@@ -105,13 +88,20 @@ public class AuthController {
     @GetMapping("/current")
     @SecurityRequirement(name = "JWT")
     public com.example.common.dto.ApiResponse<UserInfo> getCurrentUser() {
-        // TODO: 从UserContextHolder获取当前用户信息
+        // 从UserContextHolder获取当前用户信息
+        String userId = UserContextHolder.getCurrentUserId();
+        if (userId == null) {
+            return com.example.common.dto.ApiResponse.error(401, "未登录或token已过期");
+        }
+        
+        User user = authService.getCurrentUser(Long.valueOf(userId));
+        
         UserInfo userInfo = new UserInfo();
-        userInfo.setUserId(1L);
-        userInfo.setPhone("13800138000");
-        userInfo.setRole(UserRole.SALES.name());
-        userInfo.setNickname("测试用户");
-        userInfo.setStatus("active");
+        userInfo.setUserId(user.getId());
+        userInfo.setPhone(user.getPhone());
+        userInfo.setRole(user.getRole().getCode());
+        userInfo.setNickname(user.getNickname());
+        userInfo.setStatus(user.getStatus());
         
         return com.example.common.dto.ApiResponse.success(userInfo);
     }
@@ -119,9 +109,14 @@ public class AuthController {
     @Operation(summary = "刷新Token", description = "使用旧token换取新token")
     @PostMapping("/refresh")
     @SecurityRequirement(name = "JWT")
-    public com.example.common.dto.ApiResponse<RefreshTokenResponse> refreshToken() {
-        // TODO: 实现token刷新逻辑
-        String newToken = JwtUtils.generateToken("1", UserRole.SALES.name());
+    public com.example.common.dto.ApiResponse<RefreshTokenResponse> refreshToken(
+            @RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return com.example.common.dto.ApiResponse.error(401, "无效的Authorization header");
+        }
+        
+        String oldToken = authHeader.substring(7);
+        String newToken = authService.refreshToken(oldToken);
         
         RefreshTokenResponse response = new RefreshTokenResponse();
         response.setToken(newToken);
@@ -133,9 +128,59 @@ public class AuthController {
     @Operation(summary = "退出登录", description = "退出登录，使token失效")
     @PostMapping("/logout")
     @SecurityRequirement(name = "JWT")
-    public com.example.common.dto.ApiResponse<Void> logout() {
-        // TODO: 实现退出逻辑，将token加入黑名单
+    public com.example.common.dto.ApiResponse<Void> logout(
+            @RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return com.example.common.dto.ApiResponse.error(401, "无效的Authorization header");
+        }
+        
+        String token = authHeader.substring(7);
+        String userId = UserContextHolder.getCurrentUserId();
+        if (userId != null) {
+            authService.logout(token, Long.valueOf(userId));
+        }
+        
         return com.example.common.dto.ApiResponse.success(null);
+    }
+    
+    /**
+     * 快速创建下级用户
+     * 
+     * <p>销售及以上角色专用接口，用于快速创建下级用户账号。
+     * 该接口无需短信验证，自动使用创建者的邀请码建立邀请关系。
+     * 
+     * <p>权限要求：
+     * <ul>
+     *   <li>SALES - 可创建 AGENT</li>
+     *   <li>LEADER - 可创建 SALES, AGENT</li>
+     *   <li>DIRECTOR - 可创建 LEADER, SALES, AGENT</li>
+     *   <li>SUPER_ADMIN - 可创建任何角色</li>
+     * </ul>
+     * 
+     * <p>业务规则：
+     * <ul>
+     *   <li>只能创建比自己权限低的角色</li>
+     *   <li>自动绑定创建者为邀请人</li>
+     *   <li>无需短信验证码</li>
+     *   <li>手机号必须唯一</li>
+     * </ul>
+     * 
+     * @param request 创建用户请求，包含手机号、密码、昵称、角色等信息
+     * @return 创建成功的用户账号信息
+     */
+    @Operation(summary = "快速创建下级用户", 
+               description = "销售及以上角色可通过手机号快速创建下级用户账号，无需短信验证，自动绑定邀请关系。只能创建比自己权限低的角色。")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "创建成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "参数错误或手机号已存在"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足，不能创建同级或更高级别的角色")
+    })
+    @PostMapping("/create-subordinate")
+    @RequireRole(value = {UserRole.SALES, UserRole.LEADER, UserRole.DIRECTOR, UserRole.SUPER_ADMIN})
+    @SecurityRequirement(name = "JWT")
+    public com.example.common.dto.ApiResponse<CreateSubordinateResponse> createSubordinate(
+            @Valid @RequestBody CreateSubordinateRequest request) {
+        return authService.createSubordinateBySuperior(request);
     }
     
     /**
@@ -327,5 +372,81 @@ public class AuthController {
         // Getters and setters
         public String getPhone() { return phone; }
         public void setPhone(String phone) { this.phone = phone; }
+    }
+    
+    /**
+     * 快速创建下级用户请求
+     */
+    @Schema(description = "快速创建下级用户请求")
+    public static class CreateSubordinateRequest {
+        @NotBlank(message = "手机号不能为空")
+        @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
+        @Schema(description = "手机号", required = true, example = "13900139000")
+        private String phone;
+        
+        @NotBlank(message = "密码不能为空")
+        @Schema(description = "密码（6-20位）", required = true, example = "123456")
+        private String password;
+        
+        @NotBlank(message = "角色不能为空")
+        @Schema(description = "角色（agent/sales/leader/director）", required = true, example = "agent", 
+                allowableValues = {"agent", "sales", "leader", "director"})
+        private String role;
+        
+        @Schema(description = "昵称", example = "张代理")
+        private String nickname;
+        
+        // Getters and setters
+        public String getPhone() { return phone; }
+        public void setPhone(String phone) { this.phone = phone; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
+        public String getNickname() { return nickname; }
+        public void setNickname(String nickname) { this.nickname = nickname; }
+    }
+    
+    /**
+     * 创建下级用户响应
+     */
+    @Schema(description = "创建下级用户响应")
+    public static class CreateSubordinateResponse {
+        @Schema(description = "用户ID")
+        private Long userId;
+        
+        @Schema(description = "手机号")
+        private String phone;
+        
+        @Schema(description = "昵称")
+        private String nickname;
+        
+        @Schema(description = "角色")
+        private String role;
+        
+        @Schema(description = "邀请码")
+        private String inviteCode;
+        
+        @Schema(description = "邀请人ID")
+        private Long inviterId;
+        
+        @Schema(description = "邀请人昵称")
+        private String inviterNickname;
+        
+        // Getters and setters
+        public Long getUserId() { return userId; }
+        public void setUserId(Long userId) { this.userId = userId; }
+        public String getPhone() { return phone; }
+        public void setPhone(String phone) { this.phone = phone; }
+        public String getNickname() { return nickname; }
+        public void setNickname(String nickname) { this.nickname = nickname; }
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
+        public String getInviteCode() { return inviteCode; }
+        public void setInviteCode(String inviteCode) { this.inviteCode = inviteCode; }
+        public Long getInviterId() { return inviterId; }
+        public void setInviterId(Long inviterId) { this.inviterId = inviterId; }
+        public String getInviterNickname() { return inviterNickname; }
+        public void setInviterNickname(String inviterNickname) { this.inviterNickname = inviterNickname; }
     }
 }
