@@ -180,6 +180,7 @@ CREATE TABLE `deals` (
     `customer_lead_id` BIGINT UNSIGNED NOT NULL COMMENT '客户线索ID', -- OPTIMIZATION: 命名更精确，并使用 UNSIGNED。
     `product_id` BIGINT UNSIGNED NOT NULL COMMENT '商品ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
     `sales_id` BIGINT UNSIGNED NOT NULL COMMENT '成交销售ID', -- OPTIMIZATION: 外键使用 UNSIGNED。
+    `sales_owner_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '成交归属销售ID（系统根据代理关系推导）' -- OPTIMIZATION: 新增成交归属销售 id 字段。
     `deal_amount` DECIMAL(10,2) NOT NULL COMMENT '成交金额', -- OPTIMIZATION: 命名统一为 deal_amount，与 reward_amount 区分。
     `status` ENUM('pending', 'completed', 'refunded') NOT NULL DEFAULT 'completed' COMMENT '状态', -- OPTIMIZATION: 明确 NOT NULL。
     `deal_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '成交时间(业务时间)', -- OPTIMIZATION: 命名统一为 xxx_at，使用 TIMESTAMP。
@@ -192,6 +193,7 @@ CREATE TABLE `deals` (
     FOREIGN KEY (`customer_lead_id`) REFERENCES `customer_leads`(`id`) ON DELETE RESTRICT,
     FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE RESTRICT,
     FOREIGN KEY (`sales_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`sales_owner_id`) REFERENCES `users`(`id`) ON DELETE SET NULL,
 
     -- 索引
     INDEX `idx_sales_status_date` (`sales_id`, `status`, `deal_at`) -- OPTIMIZATION: 强大复合索引，满足“查询某销售某段时间内某种状态的订单”核心需求。
@@ -213,7 +215,7 @@ CREATE TABLE `commissions` (
     -- 审计字段
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',  -- OPTIMIZATION: 增加 updated_at 保持一致性。
-
+    
     -- 外键约束
     FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE RESTRICT,
     FOREIGN KEY (`deal_id`) REFERENCES `deals`(`id`) ON DELETE RESTRICT,
@@ -252,6 +254,21 @@ CREATE TABLE `promotions` (
     -- 索引
     INDEX `idx_agent_status` (`agent_id`, `status`) -- OPTIMIZATION: 复合索引，用于代理查询自己的推广任务。
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='推广任务表';
+
+-- 10.等级历史记录表
+CREATE TABLE `agent_level_history` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `level_id` INT UNSIGNED NOT NULL,
+    `assigned_by` BIGINT UNSIGNED DEFAULT NULL,
+    `change_type` ENUM('manual', 'audit', 'system') NOT NULL DEFAULT 'manual',
+    `change_reason` TEXT DEFAULT NULL,
+    `assigned_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`level_id`) REFERENCES `agent_levels`(`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`assigned_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+    INDEX `idx_user_time` (`user_id`, `assigned_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='代理等级历史记录表';
 
 -- ========================================
 -- 初始化数据
