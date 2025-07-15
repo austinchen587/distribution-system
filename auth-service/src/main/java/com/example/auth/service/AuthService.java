@@ -3,7 +3,10 @@ package com.example.auth.service;
 import com.example.auth.controller.AuthController.LoginRequest;
 import com.example.auth.controller.AuthController.LoginResponse;
 import com.example.auth.controller.AuthController.RegisterRequest;
+import com.example.auth.controller.AuthController.CreateSubordinateRequest;
+import com.example.auth.controller.AuthController.CreateSubordinateResponse;
 import com.example.auth.entity.User;
+import com.example.common.dto.ApiResponse;
 
 /**
  * 认证服务接口
@@ -18,6 +21,7 @@ import com.example.auth.entity.User;
  *   <li>Token 刷新和验证</li>
  *   <li>用户信息查询</li>
  *   <li>退出登录</li>
+ *   <li>快速创建下级用户</li>
  * </ul>
  * 
  * <p>设计原则：
@@ -99,4 +103,24 @@ public interface AuthService {
      * @param userId 用户ID
      */
     void logout(String token, Long userId);
+    
+    /**
+     * 快速创建下级用户
+     * 
+     * <p>销售及以上角色可以快速创建下级用户，无需短信验证。
+     * 系统会进行权限检查，确保只能创建比自己权限低的角色。
+     * 
+     * <p>权限规则：
+     * <ul>
+     *   <li>SALES - 可创建 AGENT</li>
+     *   <li>LEADER - 可创建 SALES, AGENT</li>
+     *   <li>DIRECTOR - 可创建 LEADER, SALES, AGENT</li>
+     *   <li>SUPER_ADMIN - 可创建任何角色</li>
+     * </ul>
+     * 
+     * @param request 创建下级用户请求，包含手机号、密码、角色等信息
+     * @return 创建成功的用户信息响应
+     * @throws BusinessException 当权限不足、手机号已存在等情况时抛出
+     */
+    ApiResponse<CreateSubordinateResponse> createSubordinateBySuperior(CreateSubordinateRequest request);
 }
