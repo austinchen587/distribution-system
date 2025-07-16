@@ -48,7 +48,7 @@ public class GlobalExceptionHandler implements ErrorWebExceptionHandler {
             message = "服务未找到";
         } else if (ex instanceof ResponseStatusException) {
             ResponseStatusException responseStatusException = (ResponseStatusException) ex;
-            status = HttpStatus.valueOf(responseStatusException.getStatusCode().value());
+            status = responseStatusException.getStatus();
             message = responseStatusException.getReason();
         } else {
             status = HttpStatus.INTERNAL_SERVER_ERROR;

@@ -6,13 +6,22 @@ spring:
   cloud:
     nacos:
       discovery:
-        enabled: false
+        enabled: true
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
       config:
-        enabled: false
+        enabled: true
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        refresh-enabled: true
     gateway:
       discovery:
         locator:
-          enabled: false
+          enabled: true
+          lower-case-service-id: true
       routes:
         - id: auth-service
           uri: lb://auth-service
@@ -20,26 +29,99 @@ spring:
             - Path=/api/auth/**
           filters:
             - StripPrefix=1
+        - id: lead-service
+          uri: lb://lead-service
+          predicates:
+            - Path=/api/leads/**
+          filters:
+            - StripPrefix=1
+        - id: deal-service
+          uri: lb://deal-service
+          predicates:
+            - Path=/api/deals/**
+          filters:
+            - StripPrefix=1
+        - id: product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/api/products/**
+          filters:
+            - StripPrefix=1
+        - id: promotion-service
+          uri: lb://promotion-service
+          predicates:
+            - Path=/api/promotions/**
+          filters:
+            - StripPrefix=1
+        - id: level-service
+          uri: lb://level-service
+          predicates:
+            - Path=/api/levels/**
+          filters:
+            - StripPrefix=1
 
-# JWT配置
+# JWT配置 - 从Nacos配置中心获取
 jwt:
-  secret: mySecretKey123456789012345678901234567890
-  expiration: 86400000
+  secret: ${JWT_SECRET:mySecretKey123456789012345678901234567890}
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
-# 白名单路径（不需要认证）
+# 白名单路径配置 - 从Nacos获取
 auth:
   whitelist:
     - /api/auth/register
     - /api/auth/login
     - /api/auth/send-code
-    - /api/auth/test-login
-    - /api/auth/user-info
+    - /api/auth/refresh
+    - /api/auth/logout
+    - /swagger-ui/**
+    - /v3/api-docs/**
+    - /actuator/**
+    - /favicon.ico
+    - /webjars/**
+    - /swagger-resources/**
+    - /v3/api-docs.yaml
 
+# 企业级日志配置
+logging:
+  level:
+    com.example.gateway: DEBUG
+    com.alibaba.nacos: INFO
+    org.springframework.cloud.gateway: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"
+
+# 健康检查配置
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
+  health:
+    readiness-state:
+      enabled: true
+    liveness-state:
+      enabled: true
+
+# 服务注册配置
+server:
+  port: 9000
+
+# 熔断和限流配置
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s
