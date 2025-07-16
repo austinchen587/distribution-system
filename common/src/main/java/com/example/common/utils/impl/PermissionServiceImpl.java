@@ -72,84 +72,73 @@ public class PermissionServiceImpl implements PermissionService {
         Set<String> permissions = new HashSet<>();
         
         // 根据角色定义权限
-        try {
-            UserRole role = UserRole.valueOf(roleCode.toUpperCase());
-            switch (role) {
-                case SUPER_ADMIN:
-                    // 超级管理员拥有所有权限
-                    permissions.add("*");
-                    break;
-                    
-                case DIRECTOR:
-                    // 总监权限
-                    permissions.add("user:view");
-                    permissions.add("user:create");
-                    permissions.add("user:update");
-                    permissions.add("user:delete");
-                    permissions.add("sales:*");
-                    permissions.add("lead:*");
-                    permissions.add("deal:*");
-                    permissions.add("commission:view");
-                    permissions.add("commission:approve");
-                    permissions.add("agent:level:approve");
-                    permissions.add("promotion:approve");
-                    permissions.add("report:*");
-                    break;
-                    
-                case LEADER:
-                    // 组长权限
-                    permissions.add("user:view");
-                    permissions.add("sales:view");
-                    permissions.add("sales:manage:team");
-                    permissions.add("lead:view");
-                    permissions.add("lead:assign");
-                    permissions.add("deal:view");
-                    permissions.add("deal:approve");
-                    permissions.add("commission:view:team");
-                    permissions.add("promotion:approve:team");
-                    permissions.add("report:team");
-                    break;
-                    
-                case SALES:
-                    // 销售权限
-                    permissions.add("user:view:self");
-                    permissions.add("lead:create");
-                    permissions.add("lead:view:assigned");
-                    permissions.add("lead:update:assigned");
-                    permissions.add("deal:create");
-                    permissions.add("deal:view:own");
-                    permissions.add("deal:update:own");
-                    permissions.add("commission:view:own");
-                    permissions.add("customer:view:assigned");
-                    permissions.add("customer:update:assigned");
-                    permissions.add("product:view");
-                    permissions.add("promotion:view");
-                    break;
-                    
-                case AGENT:
-                    // 代理权限
-                    permissions.add("user:view:self");
-                    permissions.add("lead:create");
-                    permissions.add("lead:view:own");
-                    permissions.add("promotion:create");
-                    permissions.add("promotion:view:own");
-                    permissions.add("commission:view:own");
-                    permissions.add("deal:view:related");
-                    permissions.add("agent:team:view");
-                    permissions.add("agent:invite");
-                    break;
-            }
-        } catch (IllegalArgumentException e) {
-            // 如果角色不存在，返回空集合
-            return new HashSet<>();
+        UserRole role = UserRole.valueOf(roleCode);
+        switch (role) {
+            case SUPER_ADMIN:
+                // 超级管理员拥有所有权限
+                permissions.add("*");
+                break;
+                
+            case DIRECTOR:
+                // 总监权限
+                permissions.add("user:view");
+                permissions.add("user:create");
+                permissions.add("user:update");
+                permissions.add("user:delete");
+                permissions.add("sales:*");
+                permissions.add("lead:*");
+                permissions.add("deal:*");
+                permissions.add("commission:view");
+                permissions.add("commission:approve");
+                permissions.add("agent:level:approve");
+                permissions.add("promotion:approve");
+                permissions.add("report:*");
+                break;
+                
+            case LEADER:
+                // 组长权限
+                permissions.add("user:view");
+                permissions.add("sales:view");
+                permissions.add("sales:manage:team");
+                permissions.add("lead:view");
+                permissions.add("lead:assign");
+                permissions.add("deal:view");
+                permissions.add("deal:approve");
+                permissions.add("commission:view:team");
+                permissions.add("promotion:approve:team");
+                permissions.add("report:team");
+                break;
+                
+            case SALES:
+                // 销售权限
+                permissions.add("user:view:self");
+                permissions.add("lead:create");
+                permissions.add("lead:view:assigned");
+                permissions.add("lead:update:assigned");
+                permissions.add("deal:create");
+                permissions.add("deal:view:own");
+                permissions.add("deal:update:own");
+                permissions.add("commission:view:own");
+                permissions.add("customer:view:assigned");
+                permissions.add("customer:update:assigned");
+                permissions.add("product:view");
+                permissions.add("promotion:view");
+                break;
+                
+            case AGENT:
+                // 代理权限
+                permissions.add("user:view:self");
+                permissions.add("lead:create");
+                permissions.add("lead:view:own");
+                permissions.add("promotion:create");
+                permissions.add("promotion:view:own");
+                permissions.add("commission:view:own");
+                permissions.add("deal:view:related");
+                permissions.add("agent:team:view");
+                permissions.add("agent:invite");
+                break;
         }
         
         return permissions;
-    }
-
-    @Override
-    public boolean hasRolePermission(String roleCode, String permission) {
-        Set<String> permissions = getRolePermissions(roleCode);
-        return permissions.contains(permission) || permissions.contains("*");
     }
 }
