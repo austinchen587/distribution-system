@@ -1,15 +1,14 @@
 package com.example.gateway.filter;
 
 import com.example.common.dto.CommonResult;
-import com.example.common.constants.ErrorCode;
 import com.example.common.utils.JwtUtils;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.gateway.filter.GatewayFilter;
-import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
+import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -18,6 +17,7 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import javax.annotation.PostConstruct;
@@ -25,13 +25,13 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * JWT认证过滤器
- * 用于网关层的统一身份认证和权限校验
+ * 全局认证过滤器
+ * 应用于所有路由的统一认证处理
  */
 @Component
-public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> {
+public class GlobalAuthFilter implements GlobalFilter, Ordered {
     
-    private static final Logger log = LoggerFactory.getLogger(AuthFilter.class);
+    private static final Logger log = LoggerFactory.getLogger(GlobalAuthFilter.class);
     
     @Value("${auth.whitelist:}")
     private String[] whitelistArray;
@@ -40,8 +40,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
     
     private final ObjectMapper objectMapper;
     
-    public AuthFilter(ObjectMapper objectMapper) {
-        super(Config.class);
+    public GlobalAuthFilter(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
     
@@ -50,68 +49,69 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         if (whitelistArray != null && whitelistArray.length > 0) {
             whitelist = Arrays.asList(whitelistArray);
         } else {
-            // 默认白名单
+            // 默认白名单配置
             whitelist = Arrays.asList(
                 "/api/auth/register",
                 "/api/auth/login", 
                 "/api/auth/send-code",
                 "/api/auth/refresh",
                 "/api/auth/logout",
-                "/swagger-ui/",
+                "/swagger-ui",
                 "/v3/api-docs",
-                "/actuator/health",
-                "/favicon.ico"
+                "/actuator",
+                "/favicon.ico",
+                "/webjars",
+                "/swagger-resources"
             );
         }
     }
     
     @Override
-    public GatewayFilter apply(Config config) {
-        return (exchange, chain) -> {
-            ServerHttpRequest request = exchange.getRequest();
-            String path = request.getURI().getPath();
-            
-            // 检查是否在白名单中
-            if (isWhitelisted(path)) {
-                log.debug("跳过认证：{}", path);
-                return chain.filter(exchange);
+    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        ServerHttpRequest request = exchange.getRequest();
+        String path = request.getURI().getPath();
+        
+        log.debug("处理请求: {}", path);
+        
+        // 跳过白名单路径的认证
+        if (isWhitelisted(path)) {
+            log.debug("跳过认证: {}", path);
+            return chain.filter(exchange);
+        }
+        
+        // 获取token
+        String token = extractToken(request);
+        
+        if (!StringUtils.hasText(token)) {
+            log.warn("请求缺少认证token: {}", path);
+            return onError(exchange, "未提供认证token", HttpStatus.UNAUTHORIZED);
+        }
+        
+        // 验证token
+        try {
+            if (!JwtUtils.validateToken(token)) {
+                log.warn("Token无效或已过期: {}", path);
+                return onError(exchange, "token无效或已过期", HttpStatus.UNAUTHORIZED);
             }
             
-            // 获取token
-            String token = extractToken(request);
+            // 解析token获取用户信息
+            String userId = JwtUtils.getUserIdFromToken(token);
+            String role = JwtUtils.getRoleFromToken(token);
             
-            if (!StringUtils.hasText(token)) {
-                log.warn("请求缺少认证token： {}", path);
-                return onError(exchange, "未提供认证token", HttpStatus.UNAUTHORIZED);
-            }
+            log.debug("用户认证成功: userId={}, role={}, path={}", userId, role, path);
             
-            // 验证token
-            try {
-                if (!JwtUtils.validateToken(token)) {
-                    log.warn("Token无效或已过期： {}", path);
-                    return onError(exchange, "token无效或已过期", HttpStatus.UNAUTHORIZED);
-                }
-                
-                // 解析token获取用户信息  
-                String userId = JwtUtils.getUserIdFromToken(token);
-                String role = JwtUtils.getRoleFromToken(token);
-                
-                log.debug("用户认证成功： userId={}, role={}, path={}", userId, role, path);
-                
-                // 将用户信息添加到请求头中，传递给下游服务
-                ServerHttpRequest mutatedRequest = request.mutate()
-                        .header("X-User-Id", userId)
-                        .header("X-User-Role", role)
-                        .header("X-User-Token", token)
-                        .build();
-                
-                return chain.filter(exchange.mutate().request(mutatedRequest).build());
-                
-            } catch (Exception e) {
-                log.error("Token验证失败: {}", e.getMessage());
-                return onError(exchange, "token验证失败", HttpStatus.UNAUTHORIZED);
-            }
-        };
+            // 将用户信息添加到请求头中，传递给下游服务
+            ServerHttpRequest mutatedRequest = request.mutate()
+                    .header("X-User-Id", userId)
+                    .header("X-User-Role", role)
+                    .build();
+            
+            return chain.filter(exchange.mutate().request(mutatedRequest).build());
+            
+        } catch (Exception e) {
+            log.error("Token验证失败: {}", e.getMessage());
+            return onError(exchange, "token验证失败", HttpStatus.UNAUTHORIZED);
+        }
     }
     
     /**
@@ -146,8 +146,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
      * @param httpStatus HTTP状态码
      * @return Mono对象
      */
-    private Mono<Void> onError(org.springframework.web.server.ServerWebExchange exchange, 
-                               String message, HttpStatus httpStatus) {
+    private Mono<Void> onError(ServerWebExchange exchange, String message, HttpStatus httpStatus) {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(httpStatus);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
@@ -158,16 +157,14 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             byte[] bytes = objectMapper.writeValueAsBytes(result);
             DataBuffer buffer = response.bufferFactory().wrap(bytes);
             return response.writeWith(Mono.just(buffer));
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             log.error("响应序列化失败", e);
             return response.setComplete();
         }
     }
     
-    /**
-     * 配置类
-     */
-    public static class Config {
-        // 配置类，可以添加自定义配置
+    @Override
+    public int getOrder() {
+        return -1; // 最高优先级
     }
 }
