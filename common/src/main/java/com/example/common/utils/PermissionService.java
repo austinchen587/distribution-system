@@ -38,4 +38,13 @@ public interface PermissionService {
      * @return 角色权限集合
      */
     Set<String> getRolePermissions(String roleCode);
+    
+    /**
+     * 检查角色是否有指定权限
+     * 
+     * @param roleCode 角色代码
+     * @param permission 权限标识
+     * @return 是否有权限
+     */
+    boolean hasRolePermission(String roleCode, String permission);
 }

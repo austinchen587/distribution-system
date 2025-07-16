@@ -1,5 +1,7 @@
 package com.example.common.exception;
 
+import com.example.common.constants.ErrorCode;
+
 public class BusinessException extends RuntimeException {
     private Integer code;
     private String message;
@@ -14,6 +16,18 @@ public class BusinessException extends RuntimeException {
         super(message);
         this.code = 500;
         this.message = message;
+    }
+    
+    public BusinessException(ErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.code = errorCode.getCode();
+        this.message = errorCode.getMessage();
+    }
+    
+    public BusinessException(ErrorCode errorCode, String customMessage) {
+        super(customMessage);
+        this.code = errorCode.getCode();
+        this.message = customMessage;
     }
     
     public Integer getCode() {
