@@ -1,7 +1,5 @@
 # 测试环境配置
 spring:
-  profiles:
-    active: test
   
   # 数据库配置 - 使用H2内存数据库进行测试
   datasource:

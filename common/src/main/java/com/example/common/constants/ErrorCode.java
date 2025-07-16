@@ -11,9 +11,9 @@ public enum ErrorCode {
     
     INTERNAL_SERVER_ERROR(500, "系统内部错误"),
     
-    USER_NOT_FOUND(1001, "用户不存在"),
-    USER_ALREADY_EXISTS(1002, "用户已存在"),
-    INVALID_CREDENTIALS(1003, "用户名或密码错误"),
+    USER_NOT_FOUND(404, "用户不存在"),
+    USER_ALREADY_EXISTS(409, "用户已存在"),
+    INVALID_CREDENTIALS(401, "用户名或密码错误"),
     TOKEN_EXPIRED(1004, "Token已过期"),
     TOKEN_INVALID(1005, "Token无效"),
     
@@ -45,7 +45,17 @@ public enum ErrorCode {
     
     PERMISSION_DENIED(9001, "权限不足"),
     ROLE_NOT_ALLOWED(9002, "角色权限不足"),
-    DATA_ACCESS_DENIED(9003, "数据访问权限不足");
+    DATA_ACCESS_DENIED(9003, "数据访问权限不足"),
+    
+    // 新增错误码
+    RESOURCE_NOT_FOUND(404, "资源不存在"),
+    CONFLICT(409, "资源冲突"),
+    UNPROCESSABLE_ENTITY(422, "参数校验失败"),
+    PARAM_ERROR(400, "参数错误"),
+    VALIDATION_ERROR(400, "参数验证失败"),
+    OPERATION_FAILED(500, "操作失败"),
+    LEAD_ALREADY_EXISTS(409, "客资已存在"),
+    OPERATION_TOO_FREQUENT(429, "操作过于频繁");
     
     private final Integer code;
     private final String message;
@@ -61,5 +71,10 @@ public enum ErrorCode {
     
     public String getMessage() {
         return message;
+    }
+    
+    @Override
+    public String toString() {
+        return code + ": " + message;
     }
 }

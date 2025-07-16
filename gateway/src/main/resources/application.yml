@@ -10,20 +10,22 @@ spring:
         server-addr: localhost:8848
         namespace: public
         group: DEFAULT_GROUP
+        enabled: false
       config:
         server-addr: localhost:8848
         namespace: public
         group: DEFAULT_GROUP
         file-extension: yaml
+        enabled: false
     gateway:
       discovery:
         locator:
-          enabled: true
+          enabled: false
           lower-case-service-id: true
       routes:
         # Auth Service Route
         - id: auth-service
-          uri: lb://auth-service
+          uri: http://localhost:8081
           predicates:
             - Path=/api/auth/**
           filters:
@@ -31,7 +33,7 @@ spring:
             
         # Lead Service Route  
         - id: lead-service
-          uri: lb://lead-service
+          uri: http://localhost:8082
           predicates:
             - Path=/api/leads/**
           filters:
@@ -40,7 +42,7 @@ spring:
             
         # Deal Service Route
         - id: deal-service
-          uri: lb://deal-service
+          uri: http://localhost:8083
           predicates:
             - Path=/api/deals/**
           filters:
@@ -49,7 +51,7 @@ spring:
             
         # Product Service Route
         - id: product-service
-          uri: lb://product-service
+          uri: http://localhost:8084
           predicates:
             - Path=/api/products/**
           filters:
@@ -58,7 +60,7 @@ spring:
             
         # Promotion Service Route
         - id: promotion-service
-          uri: lb://promotion-service
+          uri: http://localhost:8085
           predicates:
             - Path=/api/promotions/**
           filters:
@@ -67,7 +69,7 @@ spring:
             
         # Level Service Route
         - id: level-service
-          uri: lb://level-service
+          uri: http://localhost:8086
           predicates:
             - Path=/api/levels/**
           filters:

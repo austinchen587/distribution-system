@@ -141,4 +141,10 @@ public class PermissionServiceImpl implements PermissionService {
         
         return permissions;
     }
+
+    @Override
+    public boolean hasRolePermission(String roleCode, String permission) {
+        Set<String> permissions = getRolePermissions(roleCode);
+        return permissions != null && (permissions.contains(permission) || permissions.contains("*"));
+    }
 }
