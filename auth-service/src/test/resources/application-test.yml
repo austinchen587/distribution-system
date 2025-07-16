@@ -1,14 +1,14 @@
-# 测试环境配置
+# 测试环境配置 - 适配GitHub Actions CI/CD
 spring:
   
-  # 数据库配置 - 使用H2内存数据库进行测试
+  # 数据库配置 - 使用GitHub Actions的MySQL服务
   datasource:
-    driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:testdb;MODE=MySQL;DATABASE_TO_LOWER=TRUE
-    username: sa
-    password: 
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/test_auth?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: testuser
+    password: testpass
     
-  # Redis配置 - 使用嵌入式Redis进行测试
+  # Redis配置 - 使用GitHub Actions的Redis服务
   redis:
     host: localhost
     port: 6379
@@ -32,13 +32,14 @@ mybatis:
 # 日志配置
 logging:
   level:
-    com.example: DEBUG
-    org.springframework.web: DEBUG
+    com.example: INFO
+    org.springframework.web: INFO
     
 # JWT配置
 jwt:
   secret: test-secret-key-for-jwt-token-generation
   expiration: 86400000 # 24小时
   
-# 关闭安全检查（测试环境）
+# 测试环境优化
 spring.security.enabled: false
+server.port: 0 # 使用随机端口
