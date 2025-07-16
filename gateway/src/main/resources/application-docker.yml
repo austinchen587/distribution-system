@@ -1,0 +1,115 @@
+server:
+  port: 8080
+  
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: nacos:8848
+        namespace: public
+        group: DEFAULT_GROUP
+      config:
+        server-addr: nacos:8848
+        namespace: public
+        group: DEFAULT_GROUP
+        file-extension: yaml
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # Auth Service Route
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+            
+        # Lead Service Route  
+        - id: lead-service
+          uri: lb://lead-service
+          predicates:
+            - Path=/api/leads/**
+          filters:
+            - StripPrefix=1
+            - AuthFilter
+            
+        # Deal Service Route
+        - id: deal-service
+          uri: lb://deal-service
+          predicates:
+            - Path=/api/deals/**
+          filters:
+            - StripPrefix=1
+            - AuthFilter
+            
+        # Product Service Route
+        - id: product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/api/products/**
+          filters:
+            - StripPrefix=1
+            - AuthFilter
+            
+        # Promotion Service Route
+        - id: promotion-service
+          uri: lb://promotion-service
+          predicates:
+            - Path=/api/promotions/**
+          filters:
+            - StripPrefix=1
+            - AuthFilter
+            
+        # Level Service Route
+        - id: level-service
+          uri: lb://level-service
+          predicates:
+            - Path=/api/levels/**
+          filters:
+            - StripPrefix=1
+            - AuthFilter
+            
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+            
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Headers Access-Control-Allow-Methods
+
+# JWT配置
+jwt:
+  secret: mySecretKey123456789012345678901234567890
+  expiration: 86400000
+
+# 白名单路径（不需要认证）
+auth:
+  whitelist:
+    - /api/auth/register
+    - /api/auth/login
+    - /api/auth/send-code
+    - /api/auth/test-login
+    - /api/auth/user-info
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
