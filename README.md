@@ -1,4 +1,5 @@
-# Distribution-System# 分销系统（Distribution System）
+# Distribution-System
+# 分销系统（Distribution System）
 
 [![Language](https://img.shields.io/badge/Language-Java-blue.svg)](https://www.java.com)
 [![Framework](https://img.shields.io/badge/Framework-Spring%20Cloud-green.svg)](https://spring.io/projects/spring-cloud)
