@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  服务数据权限配置数据访问层 MyBatis 映射文件
+
+  对应接口：com.example.common.mapper.ServicePermissionMapper
+  对应实体：com.example.common.entity.ServiceDataPermission
+  对应数据表：service_data_permissions (使用backend-development-kit中的表结构)
+
+  功能说明：
+  - 提供服务数据权限配置表的 CRUD 操作 SQL 映射
+  - 支持基于服务名、表名、操作类型的权限查询
+  - 支持权限配置的批量操作和统计查询
+  - 提供权限检查器所需的核心查询方法
+  - 适配backend-development-kit中的数据库表结构（ENUM类型、外键约束等）
+
+  @author Edom
+  @date 2025-08-01
+  @since 1.0.0
+-->
+<mapper namespace="com.example.common.mapper.ServicePermissionMapper">
+    
+    <!-- 结果映射：将数据库字段映射到实体属性 -->
+    <resultMap id="BaseResultMap" type="com.example.common.entity.ServiceDataPermission">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="service_name" property="serviceName" jdbcType="VARCHAR"/>
+        <result column="table_name" property="tableName" jdbcType="VARCHAR"/>
+        <result column="operation_type" property="operationType" jdbcType="VARCHAR"/>
+        <result column="permission_level" property="permissionLevel" jdbcType="VARCHAR"/>
+        <result column="conditions" property="conditions" jdbcType="VARCHAR"/>
+        <result column="is_enabled" property="isEnabled" jdbcType="BOOLEAN"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
+        <result column="updated_by" property="updatedBy" jdbcType="BIGINT"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+    
+    <!-- 基础字段列表 -->
+    <sql id="Base_Column_List">
+        id, service_name, table_name, operation_type, permission_level, conditions,
+        is_enabled, description, created_by, updated_by, created_at, updated_at
+    </sql>
+    
+    <!-- 查询条件片段 -->
+    <sql id="Where_Conditions">
+        <where>
+            <if test="serviceName != null and serviceName != ''">
+                AND service_name = #{serviceName}
+            </if>
+            <if test="tableName != null and tableName != ''">
+                AND table_name = #{tableName}
+            </if>
+            <if test="isEnabled != null">
+                AND is_enabled = #{isEnabled}
+            </if>
+        </where>
+    </sql>
+    
+    <!-- 根据ID查询权限配置 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM service_data_permissions
+        WHERE id = #{id}
+    </select>
+    
+    <!-- 根据服务名、表名、操作类型查询权限配置（权限检查核心方法） -->
+    <select id="findPermission" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM service_data_permissions
+        WHERE service_name = #{serviceName}
+        AND table_name = #{tableName}
+        AND (operation_type = #{operationType} OR operation_type = 'ALL')
+        AND is_enabled = true
+        ORDER BY 
+            CASE operation_type 
+                WHEN #{operationType} THEN 1 
+                WHEN 'ALL' THEN 2 
+                ELSE 3 
+            END
+        LIMIT 1
+    </select>
+    
+    <!-- 查询指定服务的所有权限配置 -->
+    <select id="selectByServiceName" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM service_data_permissions
+        WHERE service_name = #{serviceName}
+        ORDER BY table_name, operation_type
+    </select>
+    
+    <!-- 查询指定表的所有权限配置 -->
+    <select id="selectByTableName" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM service_data_permissions
+        WHERE table_name = #{tableName}
+        ORDER BY service_name, operation_type
+    </select>
+    
+    <!-- 查询指定服务和表的所有权限配置 -->
+    <select id="selectByServiceAndTable" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM service_data_permissions
+        WHERE service_name = #{serviceName}
+        AND table_name = #{tableName}
+        ORDER BY operation_type
+    </select>
+    
+    <!-- 查询所有启用的权限配置 -->
+    <select id="selectAllEnabled" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM service_data_permissions
+        WHERE is_enabled = true
+        ORDER BY service_name, table_name, operation_type
+    </select>
+    
+    <!-- 分页查询权限配置 -->
+    <select id="selectWithPagination" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM service_data_permissions
+        <include refid="Where_Conditions"/>
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    
+    <!-- 统计权限配置总数 -->
+    <select id="countPermissions" resultType="int">
+        SELECT COUNT(1)
+        FROM service_data_permissions
+        <include refid="Where_Conditions"/>
+    </select>
+    
+    <!-- 插入权限配置 -->
+    <insert id="insert" parameterType="com.example.common.entity.ServiceDataPermission" 
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO service_data_permissions (
+            service_name, table_name, operation_type, permission_level, conditions,
+            is_enabled, description, created_by, updated_by
+        ) VALUES (
+            #{serviceName}, #{tableName}, #{operationType}, #{permissionLevel}, #{conditions},
+            #{isEnabled}, #{description}, #{createdBy}, #{updatedBy}
+        )
+    </insert>
+    
+    <!-- 批量插入权限配置 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO service_data_permissions (
+            service_name, table_name, operation_type, permission_level, conditions,
+            is_enabled, description, created_by, updated_by
+        ) VALUES
+        <foreach collection="permissions" item="permission" separator=",">
+            (#{permission.serviceName}, #{permission.tableName}, #{permission.operationType}, 
+             #{permission.permissionLevel}, #{permission.conditions}, #{permission.isEnabled}, 
+             #{permission.description}, #{permission.createdBy}, #{permission.updatedBy})
+        </foreach>
+    </insert>
+    
+    <!-- 更新权限配置 -->
+    <update id="update" parameterType="com.example.common.entity.ServiceDataPermission">
+        UPDATE service_data_permissions
+        <set>
+            <if test="serviceName != null">service_name = #{serviceName},</if>
+            <if test="tableName != null">table_name = #{tableName},</if>
+            <if test="operationType != null">operation_type = #{operationType},</if>
+            <if test="permissionLevel != null">permission_level = #{permissionLevel},</if>
+            <if test="conditions != null">conditions = #{conditions},</if>
+            <if test="isEnabled != null">is_enabled = #{isEnabled},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="updatedBy != null">updated_by = #{updatedBy},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+    
+    <!-- 更新权限配置的启用状态 -->
+    <update id="updateEnabledStatus">
+        UPDATE service_data_permissions
+        SET is_enabled = #{isEnabled},
+            updated_by = #{updatedBy},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+    
+    <!-- 批量更新权限配置的启用状态 -->
+    <update id="batchUpdateEnabledStatus">
+        UPDATE service_data_permissions
+        SET is_enabled = #{isEnabled},
+            updated_by = #{updatedBy},
+            updated_at = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+    
+    <!-- 根据ID删除权限配置 -->
+    <delete id="deleteById">
+        DELETE FROM service_data_permissions WHERE id = #{id}
+    </delete>
+    
+    <!-- 批量删除权限配置 -->
+    <delete id="batchDeleteByIds">
+        DELETE FROM service_data_permissions
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+    
+    <!-- 删除指定服务的所有权限配置 -->
+    <delete id="deleteByServiceName">
+        DELETE FROM service_data_permissions WHERE service_name = #{serviceName}
+    </delete>
+    
+    <!-- 检查权限配置是否存在 -->
+    <select id="existsPermission" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM service_data_permissions
+        WHERE service_name = #{serviceName}
+        AND table_name = #{tableName}
+        AND operation_type = #{operationType}
+    </select>
+    
+    <!-- 获取所有不同的服务名称 -->
+    <select id="selectDistinctServiceNames" resultType="string">
+        SELECT DISTINCT service_name
+        FROM service_data_permissions
+        ORDER BY service_name
+    </select>
+    
+    <!-- 获取所有不同的表名称 -->
+    <select id="selectDistinctTableNames" resultType="string">
+        SELECT DISTINCT table_name
+        FROM service_data_permissions
+        ORDER BY table_name
+    </select>
+    
+    <!-- 获取指定服务的权限统计信息 -->
+    <select id="getPermissionStatsByService" resultType="java.util.Map">
+        SELECT
+            permission_level as permissionLevel,
+            COUNT(1) as count
+        FROM service_data_permissions
+        WHERE service_name = #{serviceName}
+        GROUP BY permission_level
+        ORDER BY permission_level
+    </select>
+
+</mapper>

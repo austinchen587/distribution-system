@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  数据操作审计日志数据访问层 MyBatis 映射文件
+
+  对应接口：com.example.common.mapper.DataOperationLogMapper
+  对应实体：com.example.common.entity.DataOperationLog
+  对应数据表：data_operation_logs (使用backend-development-kit中的表结构)
+
+  功能说明：
+  - 提供数据操作审计日志表的 CRUD 操作 SQL 映射
+  - 支持基于多维度条件的日志查询和统计
+  - 提供性能监控和安全审计所需的查询方法
+  - 支持日志的批量操作和清理功能
+  - 适配backend-development-kit中的数据库表结构（ENUM类型、外键约束等）
+
+  @author Edom
+  @date 2025-08-01
+  @since 1.0.0
+-->
+<mapper namespace="com.example.common.mapper.DataOperationLogMapper">
+    
+    <!-- 结果映射：将数据库字段映射到实体属性 -->
+    <resultMap id="BaseResultMap" type="com.example.common.entity.DataOperationLog">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="request_id" property="requestId" jdbcType="VARCHAR"/>
+        <result column="service_name" property="serviceName" jdbcType="VARCHAR"/>
+        <result column="table_name" property="tableName" jdbcType="VARCHAR"/>
+        <result column="operation_type" property="operationType" jdbcType="VARCHAR"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="affected_rows" property="affectedRows" jdbcType="INTEGER"/>
+        <result column="execution_time" property="executionTime" jdbcType="INTEGER"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="error_message" property="errorMessage" jdbcType="VARCHAR"/>
+        <result column="sql_statement" property="sqlStatement" jdbcType="VARCHAR"/>
+        <result column="before_data" property="beforeData" jdbcType="VARCHAR"/>
+        <result column="after_data" property="afterData" jdbcType="VARCHAR"/>
+        <result column="ip_address" property="ipAddress" jdbcType="VARCHAR"/>
+        <result column="user_agent" property="userAgent" jdbcType="VARCHAR"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+    
+    <!-- 基础字段列表 -->
+    <sql id="Base_Column_List">
+        id, request_id, service_name, table_name, operation_type, user_id, affected_rows,
+        execution_time, status, error_message, sql_statement, before_data, after_data,
+        ip_address, user_agent, created_at
+    </sql>
+    
+    <!-- 查询条件片段 -->
+    <sql id="Where_Conditions">
+        <where>
+            <if test="serviceName != null and serviceName != ''">
+                AND service_name = #{serviceName}
+            </if>
+            <if test="tableName != null and tableName != ''">
+                AND table_name = #{tableName}
+            </if>
+            <if test="operationType != null and operationType != ''">
+                AND operation_type = #{operationType}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="startTime != null">
+                AND created_at >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_at &lt;= #{endTime}
+            </if>
+        </where>
+    </sql>
+    
+    <!-- 根据ID查询审计日志 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM data_operation_logs
+        WHERE id = #{id}
+    </select>
+    
+    <!-- 根据请求ID查询相关的所有审计日志 -->
+    <select id="selectByRequestId" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM data_operation_logs
+        WHERE request_id = #{requestId}
+        ORDER BY created_at ASC
+    </select>
+    
+    <!-- 查询指定服务的审计日志 -->
+    <select id="selectByService" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM data_operation_logs
+        WHERE service_name = #{serviceName}
+        <if test="startTime != null">
+            AND created_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at &lt;= #{endTime}
+        </if>
+        ORDER BY created_at DESC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+    
+    <!-- 查询指定用户的审计日志 -->
+    <select id="selectByUser" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM data_operation_logs
+        WHERE user_id = #{userId}
+        <if test="startTime != null">
+            AND created_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at &lt;= #{endTime}
+        </if>
+        ORDER BY created_at DESC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+    
+    <!-- 查询指定表的审计日志 -->
+    <select id="selectByTable" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM data_operation_logs
+        WHERE table_name = #{tableName}
+        <if test="startTime != null">
+            AND created_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at &lt;= #{endTime}
+        </if>
+        ORDER BY created_at DESC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+    
+    <!-- 分页查询审计日志 -->
+    <select id="selectWithPagination" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM data_operation_logs
+        <include refid="Where_Conditions"/>
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    
+    <!-- 统计审计日志总数 -->
+    <select id="countLogs" resultType="int">
+        SELECT COUNT(1)
+        FROM data_operation_logs
+        <include refid="Where_Conditions"/>
+    </select>
+    
+    <!-- 插入审计日志 -->
+    <insert id="insert" parameterType="com.example.common.entity.DataOperationLog" 
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO data_operation_logs (
+            request_id, service_name, table_name, operation_type, user_id, affected_rows,
+            execution_time, status, error_message, sql_statement, before_data, after_data,
+            ip_address, user_agent
+        ) VALUES (
+            #{requestId}, #{serviceName}, #{tableName}, #{operationType}, #{userId}, #{affectedRows},
+            #{executionTime}, #{status}, #{errorMessage}, #{sqlStatement}, #{beforeData}, #{afterData},
+            #{ipAddress}, #{userAgent}
+        )
+    </insert>
+    
+    <!-- 批量插入审计日志 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO data_operation_logs (
+            request_id, service_name, table_name, operation_type, user_id, affected_rows,
+            execution_time, status, error_message, sql_statement, before_data, after_data,
+            ip_address, user_agent
+        ) VALUES
+        <foreach collection="logs" item="log" separator=",">
+            (#{log.requestId}, #{log.serviceName}, #{log.tableName}, #{log.operationType}, 
+             #{log.userId}, #{log.affectedRows}, #{log.executionTime}, #{log.status}, 
+             #{log.errorMessage}, #{log.sqlStatement}, #{log.beforeData}, #{log.afterData},
+             #{log.ipAddress}, #{log.userAgent})
+        </foreach>
+    </insert>
+    
+    <!-- 删除指定时间之前的审计日志 -->
+    <delete id="deleteBeforeTime">
+        DELETE FROM data_operation_logs WHERE created_at &lt; #{beforeTime}
+    </delete>
+    
+    <!-- 删除指定服务的审计日志 -->
+    <delete id="deleteByService">
+        DELETE FROM data_operation_logs WHERE service_name = #{serviceName}
+    </delete>
+    
+    <!-- 查询慢查询日志 -->
+    <select id="selectSlowQueries" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM data_operation_logs
+        WHERE execution_time > #{threshold}
+        <if test="startTime != null">
+            AND created_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at &lt;= #{endTime}
+        </if>
+        ORDER BY execution_time DESC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+    
+    <!-- 查询失败的操作日志 -->
+    <select id="selectFailedOperations" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM data_operation_logs
+        WHERE status = 'FAILED'
+        <if test="startTime != null">
+            AND created_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at &lt;= #{endTime}
+        </if>
+        ORDER BY created_at DESC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+    
+    <!-- 查询被拒绝的操作日志 -->
+    <select id="selectDeniedOperations" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM data_operation_logs
+        WHERE status = 'DENIED'
+        <if test="startTime != null">
+            AND created_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at &lt;= #{endTime}
+        </if>
+        ORDER BY created_at DESC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+    
+    <!-- 统计操作类型分布 -->
+    <select id="getOperationTypeStats" resultType="java.util.Map">
+        SELECT 
+            operation_type as operationType,
+            COUNT(1) as count
+        FROM data_operation_logs
+        <where>
+            <if test="startTime != null">
+                AND created_at >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_at &lt;= #{endTime}
+            </if>
+        </where>
+        GROUP BY operation_type
+        ORDER BY count DESC
+    </select>
+    
+    <!-- 统计服务操作分布 -->
+    <select id="getServiceOperationStats" resultType="java.util.Map">
+        SELECT 
+            service_name as serviceName,
+            COUNT(1) as count
+        FROM data_operation_logs
+        <where>
+            <if test="startTime != null">
+                AND created_at >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_at &lt;= #{endTime}
+            </if>
+        </where>
+        GROUP BY service_name
+        ORDER BY count DESC
+    </select>
+    
+    <!-- 统计操作状态分布 -->
+    <select id="getOperationStatusStats" resultType="java.util.Map">
+        SELECT 
+            status,
+            COUNT(1) as count
+        FROM data_operation_logs
+        <where>
+            <if test="startTime != null">
+                AND created_at >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_at &lt;= #{endTime}
+            </if>
+        </where>
+        GROUP BY status
+        ORDER BY count DESC
+    </select>
+    
+    <!-- 统计每小时操作数量 -->
+    <select id="getHourlyOperationStats" resultType="java.util.Map">
+        SELECT 
+            DATE_FORMAT(created_at, '%Y-%m-%d %H:00:00') as hour,
+            COUNT(1) as count
+        FROM data_operation_logs
+        WHERE created_at >= #{startTime}
+        AND created_at &lt;= #{endTime}
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d %H:00:00')
+        ORDER BY hour
+    </select>
+    
+    <!-- 获取平均执行时间统计 -->
+    <select id="getAverageExecutionTime" resultType="java.lang.Double">
+        SELECT AVG(execution_time)
+        FROM data_operation_logs
+        WHERE execution_time IS NOT NULL
+        <if test="serviceName != null and serviceName != ''">
+            AND service_name = #{serviceName}
+        </if>
+        <if test="tableName != null and tableName != ''">
+            AND table_name = #{tableName}
+        </if>
+        <if test="operationType != null and operationType != ''">
+            AND operation_type = #{operationType}
+        </if>
+        <if test="startTime != null">
+            AND created_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at &lt;= #{endTime}
+        </if>
+    </select>
+    
+</mapper>
