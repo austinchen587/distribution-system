@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.data.mapper.InvitationCodeMapper">
+
+    <!-- 基础ResultMap -->
+    <resultMap id="BaseResultMap" type="com.example.data.entity.InvitationCode">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="code" property="code" jdbcType="VARCHAR"/>
+        <result column="target_role" property="targetRole" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR" 
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="usage_count" property="usageCount" jdbcType="INTEGER"/>
+        <result column="max_uses" property="maxUses" jdbcType="INTEGER"/>
+        <result column="expires_at" property="expiresAt" jdbcType="TIMESTAMP"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段列表 -->
+    <sql id="Base_Column_List">
+        id, user_id, code, target_role, status, usage_count, max_uses, expires_at, created_at, updated_at
+    </sql>
+
+    <!-- 根据条件查找邀请码列表 -->
+    <select id="findByConditions" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM invitation_codes
+        WHERE 1=1
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+        <if test="targetRole != null and targetRole != ''">
+            AND target_role = #{targetRole}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据条件统计邀请码数量 -->
+    <select id="countByConditions" resultType="long">
+        SELECT COUNT(*)
+        FROM invitation_codes
+        WHERE 1=1
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+        <if test="targetRole != null and targetRole != ''">
+            AND target_role = #{targetRole}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+    </select>
+
+    <!-- 批量更新邀请码状态 -->
+    <update id="batchUpdateStatus">
+        UPDATE invitation_codes 
+        SET status = #{status.code}, updated_at = #{updatedAt}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <!-- 根据关键词搜索邀请码 -->
+    <select id="searchInvitationCodes" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM invitation_codes
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (
+                code LIKE CONCAT('%', #{keyword}, '%') 
+                OR target_role LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+</mapper>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.data.mapper.AgentLevelMapper">
+
+    <!-- 基础ResultMap -->
+    <resultMap id="BaseResultMap" type="com.example.data.entity.AgentLevel">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="level_name" property="levelName" jdbcType="VARCHAR"/>
+        <result column="min_gmv" property="minGmv" jdbcType="DECIMAL"/>
+        <result column="max_gmv" property="maxGmv" jdbcType="DECIMAL"/>
+        <result column="commission_rate" property="commissionRate" jdbcType="DECIMAL"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段列表 -->
+    <sql id="Base_Column_List">
+        id, level_name, min_gmv, max_gmv, commission_rate, description, created_at, updated_at
+    </sql>
+
+    <!-- 检查GMV范围是否冲突 -->
+    <select id="checkGmvRangeConflict" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM agent_levels 
+        WHERE (
+            (#{minGmv} >= min_gmv AND (max_gmv IS NULL OR #{minGmv} &lt;= max_gmv))
+            OR (#{maxGmv} IS NOT NULL AND #{maxGmv} >= min_gmv AND (max_gmv IS NULL OR #{maxGmv} &lt;= max_gmv))
+            OR (min_gmv >= #{minGmv} AND (#{maxGmv} IS NULL OR min_gmv &lt;= #{maxGmv}))
+        )
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+</mapper>

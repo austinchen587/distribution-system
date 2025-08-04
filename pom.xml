@@ -33,6 +33,7 @@
     
     <modules>
         <module>common</module>
+        <module>data-access</module>
         <module>auth-service</module>
         <module>gateway</module>
     </modules>

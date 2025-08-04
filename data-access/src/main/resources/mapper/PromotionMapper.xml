@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.data.mapper.PromotionMapper">
+
+    <!-- 基础ResultMap -->
+    <resultMap id="BaseResultMap" type="com.example.data.entity.Promotion">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="agent_id" property="agentId" jdbcType="BIGINT"/>
+        <result column="title" property="title" jdbcType="VARCHAR"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="platform" property="platform" jdbcType="VARCHAR"/>
+        <result column="content_url" property="contentUrl" jdbcType="VARCHAR"/>
+        <result column="tags" property="tags" jdbcType="VARCHAR"/>
+        <result column="expected_reward" property="expectedReward" jdbcType="DECIMAL"/>
+        <result column="actual_reward" property="actualReward" jdbcType="DECIMAL"/>
+        <result column="audit_status" property="auditStatus" jdbcType="VARCHAR" 
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="submitted_at" property="submittedAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段列表 -->
+    <sql id="Base_Column_List">
+        id, agent_id, title, description, platform, content_url, tags, expected_reward, actual_reward, audit_status, submitted_at, updated_at
+    </sql>
+
+    <!-- 根据关键词搜索推广任务 -->
+    <select id="searchPromotions" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM promotions
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (
+                title LIKE CONCAT('%', #{keyword}, '%') 
+                OR description LIKE CONCAT('%', #{keyword}, '%') 
+                OR platform LIKE CONCAT('%', #{keyword}, '%')
+                OR content_url LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY submitted_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据条件查找推广任务列表 -->
+    <select id="findByConditions" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM promotions
+        WHERE 1=1
+        <if test="agentId != null">
+            AND agent_id = #{agentId}
+        </if>
+        <if test="platform != null and platform != ''">
+            AND platform = #{platform}
+        </if>
+        <if test="auditStatus != null and auditStatus != ''">
+            AND audit_status = #{auditStatus}
+        </if>
+        ORDER BY submitted_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据条件统计推广任务数量 -->
+    <select id="countByConditions" resultType="long">
+        SELECT COUNT(*)
+        FROM promotions
+        WHERE 1=1
+        <if test="agentId != null">
+            AND agent_id = #{agentId}
+        </if>
+        <if test="platform != null and platform != ''">
+            AND platform = #{platform}
+        </if>
+        <if test="auditStatus != null and auditStatus != ''">
+            AND audit_status = #{auditStatus}
+        </if>
+    </select>
+
+    <!-- 批量更新审核状态 -->
+    <update id="batchUpdateAuditStatus">
+        UPDATE promotions 
+        SET audit_status = #{auditStatus.code}, updated_at = #{updatedAt}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+</mapper>

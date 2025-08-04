@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.data.mapper.DealMapper">
+
+    <!-- 基础ResultMap -->
+    <resultMap id="BaseResultMap" type="com.example.data.entity.Deal">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="customer_lead_id" property="customerLeadId" jdbcType="BIGINT"/>
+        <result column="product_id" property="productId" jdbcType="BIGINT"/>
+        <result column="sales_id" property="salesId" jdbcType="BIGINT"/>
+        <result column="sales_owner_id" property="salesOwnerId" jdbcType="BIGINT"/>
+        <result column="deal_amount" property="dealAmount" jdbcType="DECIMAL"/>
+        <result column="status" property="status" jdbcType="VARCHAR" 
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="deal_at" property="dealAt" jdbcType="TIMESTAMP"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段列表 -->
+    <sql id="Base_Column_List">
+        id, customer_lead_id, product_id, sales_id, sales_owner_id, deal_amount, status, deal_at, created_at, updated_at
+    </sql>
+
+    <!-- 根据条件查找成交记录列表 -->
+    <select id="findByConditions" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM deals
+        WHERE 1=1
+        <if test="salesId != null">
+            AND sales_id = #{salesId}
+        </if>
+        <if test="productId != null">
+            AND product_id = #{productId}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="startDate != null">
+            AND deal_at >= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND deal_at &lt;= #{endDate}
+        </if>
+        ORDER BY deal_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据条件统计成交记录数量 -->
+    <select id="countByConditions" resultType="long">
+        SELECT COUNT(*)
+        FROM deals
+        WHERE 1=1
+        <if test="salesId != null">
+            AND sales_id = #{salesId}
+        </if>
+        <if test="productId != null">
+            AND product_id = #{productId}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="startDate != null">
+            AND deal_at >= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND deal_at &lt;= #{endDate}
+        </if>
+    </select>
+
+    <!-- 批量更新交易状态 -->
+    <update id="batchUpdateStatus">
+        UPDATE deals 
+        SET status = #{status.code}, updated_at = #{updatedAt}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+</mapper>

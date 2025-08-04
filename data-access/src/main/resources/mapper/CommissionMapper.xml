@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.data.mapper.CommissionMapper">
+
+    <!-- 基础ResultMap -->
+    <resultMap id="BaseResultMap" type="com.example.data.entity.Commission">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="deal_id" property="dealId" jdbcType="BIGINT"/>
+        <result column="commission_level" property="commissionLevel" jdbcType="VARCHAR" 
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="commission_rate" property="commissionRate" jdbcType="DECIMAL"/>
+        <result column="commission_amount" property="commissionAmount" jdbcType="DECIMAL"/>
+        <result column="settlement_month" property="settlementMonth" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR" 
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段列表 -->
+    <sql id="Base_Column_List">
+        id, user_id, deal_id, commission_level, commission_rate, commission_amount, settlement_month, status, created_at, updated_at
+    </sql>
+
+    <!-- 计算用户的佣金总额 -->
+    <select id="sumCommissionByUserId" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(commission_amount), 0)
+        FROM commissions
+        WHERE user_id = #{userId}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+    </select>
+
+    <!-- 根据条件查找佣金记录列表 -->
+    <select id="findByConditions" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM commissions
+        WHERE 1=1
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+        <if test="commissionLevel != null and commissionLevel != ''">
+            AND commission_level = #{commissionLevel}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="settlementMonth != null and settlementMonth != ''">
+            AND settlement_month = #{settlementMonth}
+        </if>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据条件统计佣金记录数量 -->
+    <select id="countByConditions" resultType="long">
+        SELECT COUNT(*)
+        FROM commissions
+        WHERE 1=1
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+        <if test="commissionLevel != null and commissionLevel != ''">
+            AND commission_level = #{commissionLevel}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="settlementMonth != null and settlementMonth != ''">
+            AND settlement_month = #{settlementMonth}
+        </if>
+    </select>
+
+    <!-- 批量更新结算状态 -->
+    <update id="batchUpdateStatus">
+        UPDATE commissions 
+        SET status = #{status.code}, updated_at = #{updatedAt}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <!-- 批量标记为已支付 -->
+    <update id="batchMarkAsPaid">
+        UPDATE commissions 
+        SET status = 'PAID', updated_at = #{updatedAt}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+</mapper>

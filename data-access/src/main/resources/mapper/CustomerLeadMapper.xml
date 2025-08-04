@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.data.mapper.CustomerLeadMapper">
+
+    <!-- 基础ResultMap -->
+    <resultMap id="BaseResultMap" type="com.example.data.entity.CustomerLead">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="agent_id" property="agentId" jdbcType="BIGINT"/>
+        <result column="customer_name" property="customerName" jdbcType="VARCHAR"/>
+        <result column="phone" property="phone" jdbcType="VARCHAR"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="lead_status" property="leadStatus" jdbcType="VARCHAR" 
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="follow_up_date" property="followUpDate" jdbcType="TIMESTAMP"/>
+        <result column="audit_status" property="auditStatus" jdbcType="VARCHAR" 
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基础字段列表 -->
+    <sql id="Base_Column_List">
+        id, agent_id, customer_name, phone, description, lead_status, follow_up_date, audit_status, created_at, updated_at
+    </sql>
+
+    <!-- 根据关键词搜索客户资源 -->
+    <select id="searchCustomerLeads" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM customer_leads
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (
+                customer_name LIKE CONCAT('%', #{keyword}, '%') 
+                OR phone LIKE CONCAT('%', #{keyword}, '%') 
+                OR description LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据条件查找客户资源列表 -->
+    <select id="findByConditions" resultMap="BaseResultMap">
+        SELECT 
+        <include refid="Base_Column_List"/>
+        FROM customer_leads
+        WHERE 1=1
+        <if test="agentId != null">
+            AND agent_id = #{agentId}
+        </if>
+        <if test="leadStatus != null and leadStatus != ''">
+            AND lead_status = #{leadStatus}
+        </if>
+        <if test="auditStatus != null and auditStatus != ''">
+            AND audit_status = #{auditStatus}
+        </if>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据条件统计客户资源数量 -->
+    <select id="countByConditions" resultType="long">
+        SELECT COUNT(*)
+        FROM customer_leads
+        WHERE 1=1
+        <if test="agentId != null">
+            AND agent_id = #{agentId}
+        </if>
+        <if test="leadStatus != null and leadStatus != ''">
+            AND lead_status = #{leadStatus}
+        </if>
+        <if test="auditStatus != null and auditStatus != ''">
+            AND audit_status = #{auditStatus}
+        </if>
+    </select>
+
+    <!-- 批量更新跟进状态 -->
+    <update id="batchUpdateLeadStatus">
+        UPDATE customer_leads 
+        SET lead_status = #{leadStatus.code}, updated_at = #{updatedAt}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+</mapper>
