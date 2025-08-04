@@ -7,7 +7,7 @@ services:
     image: mysql:8.0
     container_name: mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_ROOT_PASSWORD: Admin123.
       MYSQL_DATABASE: distribution
       MYSQL_CHARSET: utf8mb4
     ports:
@@ -37,7 +37,7 @@ services:
       MYSQL_SERVICE_PORT: 3306
       MYSQL_SERVICE_DB_NAME: nacos_config
       MYSQL_SERVICE_USER: root
-      MYSQL_SERVICE_PASSWORD: root123
+      MYSQL_SERVICE_PASSWORD: Admin123.
       JVM_XMS: 256m
       JVM_XMX: 512m
     depends_on:
@@ -78,7 +78,7 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/distribution?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=root123
+      - SPRING_DATASOURCE_PASSWORD=Admin123.
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
     depends_on:
