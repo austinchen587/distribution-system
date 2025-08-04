@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import javax.validation.ConstraintViolationException;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -19,6 +21,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public CommonResult<String> handleBusinessException(BusinessException e) {
         logger.warn("业务异常: {}", e.getMessage());
+        
+        // 如果有业务错误码，使用新的错误响应格式
+        if (e.getErrorCode() != null) {
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("error_code", e.getErrorCode());
+            return new CommonResult<>(e.getCode(), false, e.getMessage(), (String) errorData);
+        }
+        
+        // 向后兼容的处理方式
         return CommonResult.error(e.getCode(), e.getMessage());
     }
     
@@ -57,7 +68,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public CommonResult<String> handleException(Exception e) {
         logger.error("系统异常", e);
-        return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getCode(), 
-                                ErrorCode.INTERNAL_SERVER_ERROR.getMessage());
+        return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 }

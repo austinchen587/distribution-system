@@ -53,12 +53,12 @@ public class JwtInterceptor implements HandlerInterceptor {
                 return true;
             } else {
                 logger.warn("Token验证失败: {}", requestURI);
-                writeErrorResponse(response, ErrorCode.TOKEN_INVALID);
+                writeErrorResponse(response, ErrorCode.AUTH_005);
                 return false;
             }
         } catch (Exception e) {
             logger.error("Token解析异常: {}", e.getMessage());
-            writeErrorResponse(response, ErrorCode.TOKEN_INVALID);
+            writeErrorResponse(response, ErrorCode.AUTH_005);
             return false;
         }
     }
@@ -79,12 +79,14 @@ public class JwtInterceptor implements HandlerInterceptor {
     }
     
     private void writeErrorResponse(HttpServletResponse response, ErrorCode errorCode) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setStatus(errorCode.getHttpCode());
         response.setContentType("application/json;charset=UTF-8");
         
         Map<String, Object> result = new HashMap<>();
-        result.put("code", errorCode.getCode());
+        result.put("code", errorCode.getHttpCode());
+        result.put("success", false);
         result.put("message", errorCode.getMessage());
+        result.put("data", Map.of("error_code", errorCode.getErrorCode()));
         result.put("timestamp", System.currentTimeMillis());
         
         response.getWriter().write(objectMapper.writeValueAsString(result));
