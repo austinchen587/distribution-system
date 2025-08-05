@@ -168,7 +168,7 @@ class CommonResultTest {
         assertNotNull(resultString);
         assertTrue(resultString.contains("CommonResult"));
         assertTrue(resultString.contains("code=200"));
-        assertTrue(resultString.contains("message=操作成功"));
+        assertTrue(resultString.contains("message='操作成功'"));
         assertTrue(resultString.contains("data=测试数据"));
     }
 

@@ -31,6 +31,15 @@ public enum ErrorCode {
     COMMON_003(500, "COMMON_003", "数据库连接失败"),
     COMMON_004(500, "COMMON_004", "缓存服务异常"),
     COMMON_005(502, "COMMON_005", "第三方服务异常"),
+
+    // ============= 测试兼容性错误码 =============
+    RESOURCE_NOT_FOUND(404, "RESOURCE_NOT_FOUND", "资源不存在"),
+    OPERATION_FAILED(500, "OPERATION_FAILED", "操作失败"),
+
+    // ============= 权限控制错误码 =============
+    DATA_ACCESS_DENIED(403, "DATA_ACCESS_DENIED", "数据访问被拒绝"),
+    ROLE_NOT_ALLOWED(403, "ROLE_NOT_ALLOWED", "角色权限不足"),
+    PERMISSION_DENIED(403, "PERMISSION_DENIED", "权限被拒绝"),
     
     // ============= 认证服务 (AUTH_001-099) =============
     AUTH_001(401, "AUTH_001", "用户名或密码错误"),

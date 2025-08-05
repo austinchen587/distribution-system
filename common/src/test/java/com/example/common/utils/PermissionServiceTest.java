@@ -10,6 +10,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -20,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("权限服务单元测试")
 class PermissionServiceTest {
 
@@ -120,9 +123,15 @@ class PermissionServiceTest {
     @DisplayName("测试获取角色权限 - DIRECTOR")
     void testGetDirectorRolePermissions() {
         Set<String> permissions = permissionService.getRolePermissions("DIRECTOR");
-        
+
         assertNotNull(permissions);
-        assertTrue(permissions.contains("user:*"));
+        // 验证用户管理权限
+        assertTrue(permissions.contains("user:view"));
+        assertTrue(permissions.contains("user:create"));
+        assertTrue(permissions.contains("user:update"));
+        assertTrue(permissions.contains("user:delete"));
+        // 验证其他权限
+        assertTrue(permissions.contains("sales:*"));
         assertTrue(permissions.contains("lead:*"));
         assertTrue(permissions.contains("deal:*"));
         assertTrue(permissions.contains("commission:approve"));

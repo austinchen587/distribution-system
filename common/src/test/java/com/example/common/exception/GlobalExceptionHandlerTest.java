@@ -18,6 +18,7 @@ import org.springframework.validation.ObjectError;
 import javax.validation.ConstraintViolationException;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,13 +36,17 @@ class GlobalExceptionHandlerTest {
     void testHandleBusinessException() {
         String errorMessage = "业务处理失败";
         BusinessException exception = new BusinessException(ErrorCode.OPERATION_FAILED);
-        
-        CommonResult<String> result = globalExceptionHandler.handleBusinessException(exception);
+
+        CommonResult<Object> result = globalExceptionHandler.handleBusinessException(exception);
         
         assertNotNull(result);
         assertEquals(ErrorCode.OPERATION_FAILED.getCode(), result.getCode());
         assertEquals(ErrorCode.OPERATION_FAILED.getMessage(), result.getMessage());
-        assertNull(result.getData());
+        assertNotNull(result.getData());
+        assertTrue(result.getData() instanceof Map);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.getData();
+        assertEquals("OPERATION_FAILED", data.get("error_code"));
     }
 
     @Test
@@ -75,10 +80,13 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("测试处理方法参数校验异常")
     void testHandleValidationException() {
-        MethodArgumentNotValidException exception = mock(MethodArgumentNotValidException.class);
-        FieldError fieldError = new FieldError("user", "phone", "手机号格式不正确");
-        when(exception.getBindingResult()).thenReturn(mock(org.springframework.validation.BindingResult.class));
-        when(exception.getBindingResult().getFieldError()).thenReturn(fieldError);
+        // Create actual objects using Spring's validation infrastructure
+        org.springframework.validation.BeanPropertyBindingResult bindingResult = 
+            new org.springframework.validation.BeanPropertyBindingResult(new Object(), "user");
+        bindingResult.addError(new FieldError("user", "phone", "手机号格式不正确"));
+        
+        MethodArgumentNotValidException exception = new MethodArgumentNotValidException(
+            null, bindingResult);
         
         CommonResult<String> result = globalExceptionHandler.handleValidationException(exception);
         
@@ -91,10 +99,12 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("测试处理参数绑定异常")
     void testHandleBindException() {
-        BindException exception = mock(BindException.class);
-        FieldError fieldError = new FieldError("user", "email", "邮箱格式不正确");
-        when(exception.getBindingResult()).thenReturn(mock(org.springframework.validation.BindingResult.class));
-        when(exception.getBindingResult().getFieldError()).thenReturn(fieldError);
+        // Create actual objects using Spring's validation infrastructure
+        org.springframework.validation.BeanPropertyBindingResult bindingResult = 
+            new org.springframework.validation.BeanPropertyBindingResult(new Object(), "user");
+        bindingResult.addError(new FieldError("user", "email", "邮箱格式不正确"));
+        
+        BindException exception = new BindException(bindingResult);
         
         CommonResult<String> result = globalExceptionHandler.handleBindException(exception);
         
@@ -123,13 +133,14 @@ class GlobalExceptionHandlerTest {
     void testHandleException() {
         String errorMessage = "系统内部错误";
         Exception exception = new RuntimeException(errorMessage);
-        
-        CommonResult<String> result = globalExceptionHandler.handleException(exception);
+
+        CommonResult<Map<String, Object>> result = globalExceptionHandler.handleException(exception);
         
         assertNotNull(result);
         assertEquals(ErrorCode.INTERNAL_SERVER_ERROR.getCode(), result.getCode());
         assertEquals(ErrorCode.INTERNAL_SERVER_ERROR.getMessage(), result.getMessage());
-        assertNull(result.getData());
+        assertNotNull(result.getData());
+        assertEquals("INTERNAL_SERVER_ERROR", result.getData().get("error_code"));
     }
 
     @Test
@@ -137,26 +148,35 @@ class GlobalExceptionHandlerTest {
     void testBusinessExceptionDifferentCodes() {
         // 测试不同的业务异常码
         BusinessException badRequestException = new BusinessException(ErrorCode.BAD_REQUEST);
-        CommonResult<String> badRequestResult = globalExceptionHandler.handleBusinessException(badRequestException);
+        CommonResult<Object> badRequestResult = globalExceptionHandler.handleBusinessException(badRequestException);
         assertEquals(ErrorCode.BAD_REQUEST.getCode(), badRequestResult.getCode());
         assertEquals(ErrorCode.BAD_REQUEST.getMessage(), badRequestResult.getMessage());
+        // 验证data字段包含error_code
+        assertNotNull(badRequestResult.getData());
+        assertTrue(badRequestResult.getData() instanceof Map);
 
         BusinessException notFoundException = new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
-        CommonResult<String> notFoundResult = globalExceptionHandler.handleBusinessException(notFoundException);
+        CommonResult<Object> notFoundResult = globalExceptionHandler.handleBusinessException(notFoundException);
         assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getCode(), notFoundResult.getCode());
         assertEquals(ErrorCode.RESOURCE_NOT_FOUND.getMessage(), notFoundResult.getMessage());
+        // 验证data字段包含error_code
+        assertNotNull(notFoundResult.getData());
+        assertTrue(notFoundResult.getData() instanceof Map);
 
         BusinessException unauthorizedException = new BusinessException(ErrorCode.UNAUTHORIZED);
-        CommonResult<String> unauthorizedResult = globalExceptionHandler.handleBusinessException(unauthorizedException);
+        CommonResult<Object> unauthorizedResult = globalExceptionHandler.handleBusinessException(unauthorizedException);
         assertEquals(ErrorCode.UNAUTHORIZED.getCode(), unauthorizedResult.getCode());
         assertEquals(ErrorCode.UNAUTHORIZED.getMessage(), unauthorizedResult.getMessage());
+        // 验证data字段包含error_code
+        assertNotNull(unauthorizedResult.getData());
+        assertTrue(unauthorizedResult.getData() instanceof Map);
     }
 
     @Test
     @DisplayName("测试空消息处理")
     void testEmptyMessageHandling() {
         BusinessException exception = new BusinessException(500, null);
-        CommonResult<String> result = globalExceptionHandler.handleBusinessException(exception);
+        CommonResult<Object> result = globalExceptionHandler.handleBusinessException(exception);
         
         assertNotNull(result);
         assertEquals(500, result.getCode());
@@ -168,8 +188,8 @@ class GlobalExceptionHandlerTest {
     void testExceptionChain() {
         Exception rootCause = new IllegalArgumentException("参数错误");
         Exception exception = new RuntimeException("操作失败", rootCause);
-        
-        CommonResult<String> result = globalExceptionHandler.handleException(exception);
+
+        CommonResult<Map<String, Object>> result = globalExceptionHandler.handleException(exception);
         
         assertNotNull(result);
         assertEquals(ErrorCode.INTERNAL_SERVER_ERROR.getCode(), result.getCode());

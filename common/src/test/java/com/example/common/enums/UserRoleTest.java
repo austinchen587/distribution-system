@@ -24,11 +24,11 @@ class UserRoleTest {
     @Test
     @DisplayName("测试角色名称和描述")
     void testRoleNamesAndDescriptions() {
-        assertEquals("super_admin", UserRole.SUPER_ADMIN.name());
-        assertEquals("director", UserRole.DIRECTOR.name());
-        assertEquals("leader", UserRole.LEADER.name());
-        assertEquals("sales", UserRole.SALES.name());
-        assertEquals("agent", UserRole.AGENT.name());
+        assertEquals("super_admin", UserRole.SUPER_ADMIN.getCode());
+        assertEquals("director", UserRole.DIRECTOR.getCode());
+        assertEquals("leader", UserRole.LEADER.getCode());
+        assertEquals("sales", UserRole.SALES.getCode());
+        assertEquals("agent", UserRole.AGENT.getCode());
     }
 
     @Test

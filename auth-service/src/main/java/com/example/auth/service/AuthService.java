@@ -1,10 +1,10 @@
 package com.example.auth.service;
 
-import com.example.auth.controller.AuthController.LoginRequest;
-import com.example.auth.controller.AuthController.LoginResponse;
-import com.example.auth.controller.AuthController.RegisterRequest;
-import com.example.auth.controller.AuthController.CreateSubordinateRequest;
-import com.example.auth.controller.AuthController.CreateSubordinateResponse;
+import com.example.auth.dto.LoginRequest;
+import com.example.auth.dto.LoginResponse;
+import com.example.auth.dto.RegisterRequest;
+import com.example.auth.dto.CreateSubordinateRequest;
+import com.example.auth.dto.CreateSubordinateResponse;
 import com.example.auth.entity.User;
 import com.example.common.dto.ApiResponse;
 

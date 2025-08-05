@@ -35,6 +35,8 @@
         <module>common</module>
         <module>data-access</module>
         <module>auth-service</module>
+        <module>lead-service</module>
+        <module>promotion-service</module>
         <module>gateway</module>
     </modules>
     
@@ -78,10 +80,10 @@
                 <version>${mybatis.version}</version>
             </dependency>
             
-            <!-- MySQL -->
+            <!-- MySQL (新版本依赖) -->
             <dependency>
-                <groupId>mysql</groupId>
-                <artifactId>mysql-connector-java</artifactId>
+                <groupId>com.mysql</groupId>
+                <artifactId>mysql-connector-j</artifactId>
                 <version>${mysql.version}</version>
             </dependency>
             

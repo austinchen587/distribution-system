@@ -19,16 +19,16 @@ public class GlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     
     @ExceptionHandler(BusinessException.class)
-    public CommonResult<String> handleBusinessException(BusinessException e) {
+    public CommonResult<Object> handleBusinessException(BusinessException e) {
         logger.warn("业务异常: {}", e.getMessage());
-        
+
         // 如果有业务错误码，使用新的错误响应格式
         if (e.getErrorCode() != null) {
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("error_code", e.getErrorCode());
-            return new CommonResult<>(e.getCode(), false, e.getMessage(), (String) errorData);
+            return new CommonResult<>(e.getCode(), false, e.getMessage(), errorData);
         }
-        
+
         // 向后兼容的处理方式
         return CommonResult.error(e.getCode(), e.getMessage());
     }
@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
     }
     
     @ExceptionHandler(Exception.class)
-    public CommonResult<String> handleException(Exception e) {
+    public CommonResult<Map<String, Object>> handleException(Exception e) {
         logger.error("系统异常", e);
         return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR);
     }

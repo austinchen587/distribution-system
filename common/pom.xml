@@ -96,17 +96,11 @@
             <version>2.3.1</version>
         </dependency>
 
-        <!-- MySQL Driver -->
+        <!-- MySQL Driver (新的官方依赖) -->
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
-        </dependency>
-
-        <!-- AspectJ -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
         
         <!-- Spring Security -->
