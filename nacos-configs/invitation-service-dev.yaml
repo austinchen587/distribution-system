@@ -1,0 +1,94 @@
+server:
+  port: 8085
+  servlet:
+    context-path: /invitations
+
+spring:
+  application:
+    name: invitation-service
+  
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/distribution_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: Admin123.
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      pool-prepared-statements: true
+      max-pool-prepared-statement-per-connection-size: 20
+  
+  redis:
+    host: localhost
+    port: 6379
+    database: 4  # 使用database 4
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        concurrency: 3
+        max-concurrency: 10
+        acknowledge-mode: manual
+        retry:
+          enabled: true
+          max-attempts: 3
+
+# MyBatis配置
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.example.invitation.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: true
+    lazy-loading-enabled: true
+
+# 邀请系统业务配置
+invitation:
+  code:
+    length: 8                       # 邀请码长度
+    expiry-days: 30                # 邀请码有效期（天）
+    max-uses: 100                  # 单个邀请码最大使用次数
+    generation-strategy: "ALPHANUMERIC"  # 生成策略：字母数字混合
+  relationship:
+    max-levels: 3                  # 最大层级关系深度
+    auto-build: true               # 自动建立关系链
+  statistics:
+    cache-enabled: true            # 启用统计缓存
+    cache-ttl: 3600               # 缓存TTL（秒）
+
+# JWT配置
+jwt:
+  secret: mySecretKey123456789012345678901234567890
+  expiration: 86400000
+
+# 日志配置
+logging:
+  level:
+    com.example.invitation: DEBUG
+    org.springframework.web: INFO
+    com.example.common.event: INFO
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
+  file:
+    name: logs/invitation-service.log

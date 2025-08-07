@@ -1,6 +1,6 @@
 package com.example.gateway.exception;
 
-import com.example.common.dto.ApiResponse;
+import com.example.common.dto.CommonResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -62,7 +62,7 @@ public class GlobalExceptionHandler implements ErrorWebExceptionHandler {
                 exchange.getRequest().getPath(), status, message, ex);
         
         // 构建响应体
-        ApiResponse<?> apiResponse = ApiResponse.error(status.value(), message);
+        CommonResult<?> apiResponse = CommonResult.error(status.value(), message);
         
         return response.writeWith(Mono.fromSupplier(() -> {
             DataBufferFactory bufferFactory = response.bufferFactory();

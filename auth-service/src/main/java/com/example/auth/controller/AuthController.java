@@ -5,7 +5,7 @@ import com.example.auth.entity.User;
 import com.example.auth.service.AuthService;
 import com.example.auth.service.SmsService;
 import com.example.common.annotation.RequireRole;
-import com.example.common.dto.ApiResponse;
+import com.example.common.dto.CommonResult;
 import com.example.common.enums.UserRole;
 import com.example.common.utils.JwtUtils;
 import com.example.common.utils.UserContextHolder;
@@ -43,10 +43,10 @@ public class AuthController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "手机号格式错误或发送太频繁")
     })
     @PostMapping("/send-code")
-    public com.example.common.dto.ApiResponse<String> sendRegisterCode(
+    public CommonResult<String> sendRegisterCode(
             @Valid @RequestBody SendCodeRequest request) {
         smsService.sendRegisterCode(request.getPhone());
-        return com.example.common.dto.ApiResponse.success("验证码发送成功");
+        return CommonResult.success("验证码发送成功");
     }
     
     @Operation(summary = "用户注册", description = "新用户注册，支持销售和代理角色注册")
@@ -55,7 +55,7 @@ public class AuthController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "参数错误或手机号已存在")
     })
     @PostMapping("/register")
-    public com.example.common.dto.ApiResponse<RegisterResponse> register(
+    public CommonResult<RegisterResponse> register(
             @Valid @RequestBody RegisterRequest request) {
         LoginResponse loginResponse = authService.register(request);
         
@@ -66,7 +66,7 @@ public class AuthController {
         response.setRole(loginResponse.getRole());
         response.setMessage("注册成功");
         
-        return com.example.common.dto.ApiResponse.success(response);
+        return CommonResult.success(response);
     }
     
     @Operation(summary = "用户登录", description = "用户登录获取JWT令牌")
@@ -75,10 +75,10 @@ public class AuthController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "用户名或密码错误")
     })
     @PostMapping("/login")
-    public com.example.common.dto.ApiResponse<LoginResponse> login(
+    public CommonResult<LoginResponse> login(
             @Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
-        return com.example.common.dto.ApiResponse.success(response);
+        return CommonResult.success(response);
     }
     
     @Operation(summary = "获取当前用户信息", description = "根据token获取当前登录用户信息")
@@ -88,11 +88,11 @@ public class AuthController {
     })
     @GetMapping("/current")
     @SecurityRequirement(name = "JWT")
-    public com.example.common.dto.ApiResponse<UserInfo> getCurrentUser() {
+    public CommonResult<UserInfo> getCurrentUser() {
         // 从UserContextHolder获取当前用户信息
         String userId = UserContextHolder.getCurrentUserId();
         if (userId == null) {
-            return com.example.common.dto.ApiResponse.error(401, "未登录或token已过期");
+            return CommonResult.error(401, "未登录或token已过期");
         }
         
         User user = authService.getCurrentUser(Long.valueOf(userId));
@@ -104,16 +104,16 @@ public class AuthController {
         userInfo.setNickname(user.getNickname());
         userInfo.setStatus(user.getStatus());
         
-        return com.example.common.dto.ApiResponse.success(userInfo);
+        return CommonResult.success(userInfo);
     }
     
     @Operation(summary = "刷新Token", description = "使用旧token换取新token")
     @PostMapping("/refresh")
     @SecurityRequirement(name = "JWT")
-    public com.example.common.dto.ApiResponse<RefreshTokenResponse> refreshToken(
+    public CommonResult<RefreshTokenResponse> refreshToken(
             @RequestHeader("Authorization") String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return com.example.common.dto.ApiResponse.error(401, "无效的Authorization header");
+            return CommonResult.error(401, "无效的Authorization header");
         }
         
         String oldToken = authHeader.substring(7);
@@ -123,16 +123,16 @@ public class AuthController {
         response.setToken(newToken);
         response.setExpiresIn(86400L); // 24小时
         
-        return com.example.common.dto.ApiResponse.success(response);
+        return CommonResult.success(response);
     }
     
     @Operation(summary = "退出登录", description = "退出登录，使token失效")
     @PostMapping("/logout")
     @SecurityRequirement(name = "JWT")
-    public com.example.common.dto.ApiResponse<Void> logout(
+    public CommonResult<Void> logout(
             @RequestHeader("Authorization") String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return com.example.common.dto.ApiResponse.error(401, "无效的Authorization header");
+            return CommonResult.error(401, "无效的Authorization header");
         }
         
         String token = authHeader.substring(7);
@@ -141,7 +141,7 @@ public class AuthController {
             authService.logout(token, Long.valueOf(userId));
         }
         
-        return com.example.common.dto.ApiResponse.success(null);
+        return CommonResult.success(null);
     }
     
     /**
@@ -179,7 +179,7 @@ public class AuthController {
     @PostMapping("/create-subordinate")
     @RequireRole(value = {UserRole.SALES, UserRole.LEADER, UserRole.DIRECTOR, UserRole.SUPER_ADMIN})
     @SecurityRequirement(name = "JWT")
-    public com.example.common.dto.ApiResponse<CreateSubordinateResponse> createSubordinate(
+    public CommonResult<CreateSubordinateResponse> createSubordinate(
             @Valid @RequestBody CreateSubordinateRequest request) {
         return authService.createSubordinateBySuperior(request);
     }

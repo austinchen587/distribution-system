@@ -4,7 +4,7 @@ import com.example.common.dto.DataAccessContext;
 import com.example.common.exception.DataAccessDeniedException;
 import com.example.common.service.DataOperationLogger;
 import com.example.common.service.ServicePermissionChecker;
-import com.example.common.util.DataAccessContextExtractor;
+import com.example.common.utils.DataAccessContextExtractor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -1,0 +1,15 @@
+# Spring Boot Auto-Configuration
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.example.common.config.EventDrivenAutoConfiguration
+
+# Application Listeners
+org.springframework.context.ApplicationListener=\
+
+# Environment Post Processors
+org.springframework.boot.env.EnvironmentPostProcessor=\
+
+# Failure Analyzers
+org.springframework.boot.diagnostics.FailureAnalyzer=\
+
+# Property Source Loaders
+org.springframework.boot.env.PropertySourceLoader=\

@@ -8,7 +8,7 @@ import com.example.auth.dto.CreateSubordinateResponse;
 import com.example.auth.entity.User;
 import com.example.auth.mapper.UserMapper;
 import com.example.auth.service.AuthService;
-import com.example.common.dto.ApiResponse;
+import com.example.common.dto.CommonResult;
 import com.example.common.enums.UserRole;
 import com.example.common.exception.BusinessException;
 import com.example.common.utils.JwtUtils;
@@ -229,7 +229,7 @@ public class AuthServiceImpl implements AuthService {
     
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ApiResponse<CreateSubordinateResponse> createSubordinateBySuperior(CreateSubordinateRequest request) {
+    public CommonResult<CreateSubordinateResponse> createSubordinateBySuperior(CreateSubordinateRequest request) {
         log.info("快速创建下级用户请求：phone={}, targetRole={}", request.getPhone(), request.getRole());
         
         // 1. 获取当前登录用户信息
@@ -289,7 +289,7 @@ public class AuthServiceImpl implements AuthService {
         log.info("下级用户创建成功：userId={}, phone={}, role={}, inviterId={}", 
                 newUser.getId(), newUser.getPhone(), newUser.getRole(), currentUser.getId());
         
-        return ApiResponse.success(response);
+        return CommonResult.success(response);
     }
     
     /**

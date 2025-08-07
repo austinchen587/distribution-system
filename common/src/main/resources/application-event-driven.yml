@@ -1,0 +1,325 @@
+# ===============================================
+# 事件驱动架构配置
+# Event-Driven Architecture Configuration
+# ===============================================
+
+spring:
+  application:
+    name: distribution-system-common
+  
+  # RabbitMQ 配置
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    connection-timeout: 60000
+    
+    # 发布者确认
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    
+    # 消费者配置
+    listener:
+      simple:
+        # 手动确认消息
+        acknowledge-mode: manual
+        # 预取数量
+        prefetch: 10
+        # 并发消费者数量
+        concurrency: 2
+        # 最大并发消费者数量
+        max-concurrency: 10
+        # 重试配置
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000ms
+          multiplier: 2
+          max-interval: 10000ms
+        # 默认重新排队策略
+        default-requeue-rejected: false
+    
+    # 模板配置
+    template:
+      # 发送超时
+      receive-timeout: 30000
+      reply-timeout: 30000
+      # 重试配置
+      retry:
+        enabled: true
+        max-attempts: 3
+        initial-interval: 1000ms
+        multiplier: 2
+        max-interval: 10000ms
+
+  # 数据库配置（如果需要事务支持）
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/distribution_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    
+    # HikariCP 配置
+    hikari:
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 20
+      minimum-idle: 5
+      pool-name: EventDrivenHikariCP
+  
+  # Redis 配置（用于Saga状态存储和去重）
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DATABASE:0}
+    timeout: 5000
+    
+    jedis:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 2
+        max-wait: 3000ms
+
+# ===============================================
+# 事件驱动架构自定义配置
+# Custom Event-Driven Architecture Configuration  
+# ===============================================
+event-driven:
+  # RabbitMQ 配置
+  rabbitmq:
+    # 消息TTL（毫秒）- 5分钟
+    message-ttl: 300000
+    # 最大重试次数
+    max-retries: 3
+    # 重试间隔（毫秒）
+    retry-interval: 1000
+    # 是否启用发布确认
+    publisher-confirms: true
+    # 是否启用返回确认
+    publisher-returns: true
+    # 预取数量
+    prefetch-count: 10
+    # 并发消费者数量
+    concurrent-consumers: 2
+    # 最大并发消费者数量
+    max-concurrent-consumers: 10
+  
+  # Saga 配置
+  saga:
+    # Saga事务默认超时时间（毫秒）- 5分钟
+    default-timeout: 300000
+    # Saga步骤默认超时时间（毫秒）- 30秒
+    step-timeout: 30000
+    # 最大重试次数
+    max-retries: 3
+    # 重试间隔（毫秒）
+    retry-interval: 1000
+    # 是否启用补偿机制
+    compensation-enabled: true
+    # 清理已完成事务的间隔（毫秒）- 1小时
+    cleanup-interval: 3600000
+    # 事务保留时间（毫秒）- 24小时
+    retention-period: 86400000
+    # 最大并发执行的Saga数量
+    max-concurrent-sagas: 100
+  
+  # 事件发布配置
+  event-publish:
+    # 批量发布大小
+    batch-size: 100
+    # 批量发布间隔（毫秒）
+    batch-interval: 1000
+    # 是否启用异步发布
+    async-enabled: true
+    # 异步发布队列大小
+    async-queue-size: 1000
+    # 发布超时时间（毫秒）
+    publish-timeout: 5000
+    # 是否启用事件去重
+    deduplication-enabled: true
+    # 去重窗口时间（毫秒）- 1分钟
+    deduplication-window: 60000
+  
+  # 服务发现配置
+  service-discovery:
+    # 服务端点映射
+    endpoints:
+      auth-service: http://localhost:8081
+      lead-service: http://localhost:8082
+      promotion-service: http://localhost:8083
+      reward-service: http://localhost:8084
+      invitation-service: http://localhost:8085
+      assignment-service: http://localhost:8086
+      follow-service: http://localhost:8087
+      notification-service: http://localhost:8088
+      statistics-service: http://localhost:8089
+    
+    # 健康检查间隔（毫秒）- 30秒
+    health-check-interval: 30000
+    # 连接超时时间（毫秒）
+    connect-timeout: 5000
+    # 读取超时时间（毫秒）
+    read-timeout: 10000
+    # 熔断器失败阈值
+    circuit-breaker-failure-threshold: 5
+    # 熔断器恢复时间（毫秒）- 1分钟
+    circuit-breaker-recovery-time: 60000
+
+# ===============================================
+# 日志配置
+# Logging Configuration
+# ===============================================
+logging:
+  level:
+    # 事件驱动架构相关日志
+    com.example.common.event: INFO
+    com.example.common.saga: INFO
+    com.example.common.config: INFO
+    
+    # RabbitMQ 相关日志
+    org.springframework.amqp: INFO
+    org.springframework.rabbit: INFO
+    
+    # 异步任务相关日志
+    org.springframework.scheduling: INFO
+    
+    # SQL 日志（开发环境）
+    org.mybatis: DEBUG
+    com.example.common.mapper: DEBUG
+  
+  pattern:
+    # 控制台日志格式
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+    # 文件日志格式
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${PID:- } --- [%t] %-40.40logger{39} : %m%n%wEx"
+
+# ===============================================
+# 管理和监控配置
+# Management and Monitoring Configuration
+# ===============================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,rabbitmq,saga
+  
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+    
+    # 自定义Saga监控端点
+    saga:
+      enabled: true
+    
+    # RabbitMQ健康检查
+    rabbitmq:
+      enabled: true
+  
+  health:
+    # RabbitMQ 健康检查
+    rabbit:
+      enabled: true
+    
+    # Redis 健康检查
+    redis:
+      enabled: true
+    
+    # 数据库健康检查
+    db:
+      enabled: true
+
+# ===============================================
+# 异步任务配置
+# Async Task Configuration
+# ===============================================
+async:
+  # 核心线程池大小
+  core-pool-size: 5
+  # 最大线程池大小
+  max-pool-size: 20
+  # 队列容量
+  queue-capacity: 500
+  # 线程空闲时间（秒）
+  keep-alive-seconds: 60
+  # 线程名前缀
+  thread-name-prefix: "EventDriven-Async-"
+  # 拒绝策略：调用者运行
+  rejection-policy: caller-runs
+  # 等待任务完成后关闭
+  wait-for-tasks-to-complete-on-shutdown: true
+  # 等待时间（秒）
+  await-termination-seconds: 60
+
+# ===============================================
+# 开发环境特定配置
+# Development-specific Configuration
+# ===============================================
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+# 开发环境下的调试配置
+logging:
+  level:
+    root: INFO
+    com.example.common: DEBUG
+    org.springframework.amqp: DEBUG
+    org.springframework.rabbit: DEBUG
+
+# 开发环境下的RabbitMQ配置
+event-driven:
+  rabbitmq:
+    # 开发环境下可以更宽松的超时设置
+    message-ttl: 600000  # 10分钟
+  
+  saga:
+    # 开发环境下更长的超时时间
+    default-timeout: 600000  # 10分钟
+    step-timeout: 60000      # 1分钟
+
+# ===============================================
+# 生产环境特定配置
+# Production-specific Configuration
+# ===============================================
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+# 生产环境日志配置
+logging:
+  level:
+    root: WARN
+    com.example.common: INFO
+  
+  file:
+    name: logs/event-driven-architecture.log
+    max-size: 100MB
+    max-history: 30
+
+# 生产环境优化配置
+event-driven:
+  event-publish:
+    # 生产环境下更大的批处理
+    batch-size: 500
+    batch-interval: 500
+  
+  saga:
+    # 生产环境下更多的并发处理
+    max-concurrent-sagas: 500
+
+# 生产环境数据库连接池优化
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10

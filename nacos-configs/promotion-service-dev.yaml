@@ -1,0 +1,97 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /promotions
+
+spring:
+  application:
+    name: promotion-service
+  
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/distribution_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: Admin123.
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      pool-prepared-statements: true
+      max-pool-prepared-statement-per-connection-size: 20
+  
+  redis:
+    host: localhost
+    port: 6379
+    database: 2  # 使用database 2
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        concurrency: 3
+        max-concurrency: 10
+        acknowledge-mode: manual
+        retry:
+          enabled: true
+          max-attempts: 3
+
+# MyBatis配置
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.example.promotion.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: true
+    lazy-loading-enabled: true
+
+# 推广审核业务配置
+promotion:
+  audit:
+    machine-audit:
+      enabled: true
+      platform-recognition: true  # 平台识别
+      content-filter: true        # 内容过滤
+      auto-approve-score: 85      # 机器审核自动通过分数
+    manual-audit:
+      enabled: true
+      required-for-high-risk: true # 高风险内容强制人工审核
+      timeout-hours: 24           # 人工审核超时时间
+  reward:
+    auto-calculate: true          # 自动计算奖励
+    base-commission-rate: 0.05    # 基础佣金率5%
+    level-bonus-enabled: true     # 启用等级奖励
+
+# JWT配置
+jwt:
+  secret: mySecretKey123456789012345678901234567890
+  expiration: 86400000
+
+# 日志配置
+logging:
+  level:
+    com.example.promotion: DEBUG
+    org.springframework.web: INFO
+    com.example.common.event: INFO
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
+  file:
+    name: logs/promotion-service.log

@@ -1,0 +1,91 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /leads
+
+spring:
+  application:
+    name: lead-service
+  
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/distribution_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: Admin123.
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      pool-prepared-statements: true
+      max-pool-prepared-statement-per-connection-size: 20
+  
+  redis:
+    host: localhost
+    port: 6379
+    database: 1  # 使用database 1，避免与auth-service冲突
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        concurrency: 3
+        max-concurrency: 10
+        acknowledge-mode: manual
+        retry:
+          enabled: true
+          max-attempts: 3
+
+# MyBatis配置
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.example.lead.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: true
+    lazy-loading-enabled: true
+
+# 客资管理业务配置
+lead:
+  duplicate-check:
+    enabled: true
+    similarity-threshold: 0.8  # 重复度阈值
+    phone-fuzzy-match: true    # 手机号模糊匹配
+    wechat-fuzzy-match: true   # 微信号模糊匹配
+  audit:
+    auto-approve-threshold: 0.9  # 自动通过阈值
+    require-manual-review: true  # 是否需要人工审核
+
+# JWT配置（从Gateway继承）
+jwt:
+  secret: mySecretKey123456789012345678901234567890
+  expiration: 86400000
+
+# 日志配置
+logging:
+  level:
+    com.example.lead: DEBUG
+    org.springframework.web: INFO
+    com.example.common.event: INFO
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
+  file:
+    name: logs/lead-service.log

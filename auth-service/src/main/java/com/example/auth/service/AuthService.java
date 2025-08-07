@@ -6,7 +6,7 @@ import com.example.auth.dto.RegisterRequest;
 import com.example.auth.dto.CreateSubordinateRequest;
 import com.example.auth.dto.CreateSubordinateResponse;
 import com.example.auth.entity.User;
-import com.example.common.dto.ApiResponse;
+import com.example.common.dto.CommonResult;
 
 /**
  * 认证服务接口
@@ -122,5 +122,5 @@ public interface AuthService {
      * @return 创建成功的用户信息响应
      * @throws BusinessException 当权限不足、手机号已存在等情况时抛出
      */
-    ApiResponse<CreateSubordinateResponse> createSubordinateBySuperior(CreateSubordinateRequest request);
+    CommonResult<CreateSubordinateResponse> createSubordinateBySuperior(CreateSubordinateRequest request);
 }
