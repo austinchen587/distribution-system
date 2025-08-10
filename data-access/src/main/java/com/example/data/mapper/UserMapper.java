@@ -30,7 +30,7 @@ public interface UserMapper {
     @DataPermission(table = "users", operation = OperationType.CREATE, description = "创建新用户")
     @Insert("INSERT INTO users (username, email, phone, password, role, status, commission_rate, parent_id, " +
             "last_login_at, created_at, updated_at) VALUES (#{username}, #{email}, #{phone}, #{password}, " +
-            "#{role}, #{status.code}, #{commissionRate}, #{parentId}, #{lastLoginAt}, #{createdAt}, #{updatedAt})")
+            "#{role}, #{status}, #{commissionRate}, #{parentId}, #{lastLoginAt}, #{createdAt}, #{updatedAt})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(User user);
     
@@ -42,10 +42,6 @@ public interface UserMapper {
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据ID查询用户")
     @Select("SELECT * FROM users WHERE id = #{id}")
-    @Results({
-        @Result(property = "status", column = "status", 
-                typeHandler = org.apache.ibatis.type.EnumTypeHandler.class)
-    })
     Optional<User> findById(@Param("id") Long id);
     
     /**
@@ -56,10 +52,6 @@ public interface UserMapper {
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据用户名查询用户")
     @Select("SELECT * FROM users WHERE username = #{username}")
-    @Results({
-        @Result(property = "status", column = "status", 
-                typeHandler = org.apache.ibatis.type.EnumTypeHandler.class)
-    })
     Optional<User> findByUsername(@Param("username") String username);
     
     /**
@@ -70,10 +62,6 @@ public interface UserMapper {
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据邮箱查询用户")
     @Select("SELECT * FROM users WHERE email = #{email}")
-    @Results({
-        @Result(property = "status", column = "status", 
-                typeHandler = org.apache.ibatis.type.EnumTypeHandler.class)
-    })
     Optional<User> findByEmail(@Param("email") String email);
     
     /**
@@ -84,10 +72,6 @@ public interface UserMapper {
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据手机号查询用户")
     @Select("SELECT * FROM users WHERE phone = #{phone}")
-    @Results({
-        @Result(property = "status", column = "status", 
-                typeHandler = org.apache.ibatis.type.EnumTypeHandler.class)
-    })
     Optional<User> findByPhone(@Param("phone") String phone);
     
     /**
@@ -98,10 +82,6 @@ public interface UserMapper {
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据角色查询用户列表")
     @Select("SELECT * FROM users WHERE role = #{role} ORDER BY created_at DESC")
-    @Results({
-        @Result(property = "status", column = "status", 
-                typeHandler = org.apache.ibatis.type.EnumTypeHandler.class)
-    })
     List<User> findByRole(@Param("role") String role);
     
     /**
@@ -111,12 +91,8 @@ public interface UserMapper {
      * @return 用户列表
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据状态查询用户列表")
-    @Select("SELECT * FROM users WHERE status = #{status.code} ORDER BY created_at DESC")
-    @Results({
-        @Result(property = "status", column = "status", 
-                typeHandler = org.apache.ibatis.type.EnumTypeHandler.class)
-    })
-    List<User> findByStatus(@Param("status") User.UserStatus status);
+    @Select("SELECT * FROM users WHERE status = #{status} ORDER BY created_at DESC")
+    List<User> findByStatus(@Param("status") String status);
     
     /**
      * 查找所有用户（分页）
@@ -127,10 +103,6 @@ public interface UserMapper {
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "分页查询所有用户")
     @Select("SELECT * FROM users ORDER BY created_at DESC LIMIT #{offset}, #{limit}")
-    @Results({
-        @Result(property = "status", column = "status", 
-                typeHandler = org.apache.ibatis.type.EnumTypeHandler.class)
-    })
     List<User> findAll(@Param("offset") int offset, @Param("limit") int limit);
     
     /**
@@ -160,7 +132,7 @@ public interface UserMapper {
      */
     @DataPermission(table = "users", operation = OperationType.UPDATE, description = "更新用户信息")
     @Update("UPDATE users SET username = #{username}, email = #{email}, phone = #{phone}, " +
-            "role = #{role}, status = #{status.code}, commission_rate = #{commissionRate}, " +
+            "role = #{role}, status = #{status}, commission_rate = #{commissionRate}, " +
             "parent_id = #{parentId}, last_login_at = #{lastLoginAt}, updated_at = #{updatedAt} " +
             "WHERE id = #{id}")
     int update(User user);
@@ -200,8 +172,8 @@ public interface UserMapper {
      * @return 影响行数
      */
     @DataPermission(table = "users", operation = OperationType.UPDATE, description = "更新用户状态")
-    @Update("UPDATE users SET status = #{status.code}, updated_at = #{updatedAt} WHERE id = #{id}")
-    int updateStatus(@Param("id") Long id, @Param("status") User.UserStatus status,
+    @Update("UPDATE users SET status = #{status}, updated_at = #{updatedAt} WHERE id = #{id}")
+    int updateStatus(@Param("id") Long id, @Param("status") String status,
                     @Param("updatedAt") LocalDateTime updatedAt);
     
     /**
@@ -258,10 +230,6 @@ public interface UserMapper {
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "查询下级用户列表")
     @Select("SELECT * FROM users WHERE parent_id = #{parentId} ORDER BY created_at DESC")
-    @Results({
-        @Result(property = "status", column = "status", 
-                typeHandler = org.apache.ibatis.type.EnumTypeHandler.class)
-    })
     List<User> findByParentId(@Param("parentId") Long parentId);
     
     /**

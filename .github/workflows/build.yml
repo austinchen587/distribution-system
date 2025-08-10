@@ -53,3 +53,7 @@ jobs:
             echo "Build failed: auth-service JAR not found"
             exit 1
           fi
+
+      - name: Check ports allocation doc
+        run: |
+          bash scripts/ci/check-ports-doc.sh

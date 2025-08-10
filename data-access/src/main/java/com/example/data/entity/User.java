@@ -59,10 +59,10 @@ public class User {
     private String role;
     
     /**
-     * 用户账户状态
+     * 用户账户状态 - 临时使用String类型避免MyBatis枚举转换问题
      */
     @NotNull(message = "用户状态不能为空")
-    private UserStatus status = UserStatus.ACTIVE;
+    private String status = "active";
     
     /**
      * 个人专属佣金比例，优先级高于等级佣金
@@ -136,7 +136,7 @@ public class User {
         this.phone = phone;
         this.password = password;
         this.role = role;
-        this.status = UserStatus.ACTIVE;
+        this.status = "active";
         this.commissionRate = BigDecimal.ZERO;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
@@ -191,11 +191,11 @@ public class User {
         this.role = role;
     }
     
-    public UserStatus getStatus() {
+    public String getStatus() {
         return status;
     }
     
-    public void setStatus(UserStatus status) {
+    public void setStatus(String status) {
         this.status = status;
     }
     
@@ -245,14 +245,14 @@ public class User {
      * 检查用户是否活跃
      */
     public boolean isActive() {
-        return UserStatus.ACTIVE.equals(this.status);
+        return "active".equals(this.status);
     }
     
     /**
      * 检查用户是否被封禁
      */
     public boolean isBanned() {
-        return UserStatus.BANNED.equals(this.status);
+        return "banned".equals(this.status);
     }
     
     /**

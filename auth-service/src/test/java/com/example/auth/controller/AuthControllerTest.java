@@ -1,8 +1,10 @@
 package com.example.auth.controller;
 
+import com.example.auth.dto.LoginRequest;
+import com.example.auth.dto.LoginResponse;
 import com.example.auth.service.AuthService;
 import com.example.auth.service.SmsService;
-import com.example.common.dto.ApiResponse;
+import com.example.common.dto.CommonResult;
 import com.example.common.utils.JwtUtils;
 import com.example.common.utils.UserContextHolder;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,19 +63,19 @@ public class AuthControllerTest {
     @Test
     public void testLogin_Success() throws Exception {
         // 准备测试数据
-        AuthController.LoginRequest request = new AuthController.LoginRequest();
+        LoginRequest request = new LoginRequest();
         request.setPhone("13800138000");
         request.setPassword("123456");
-        
-        AuthController.LoginResponse response = new AuthController.LoginResponse();
+
+        LoginResponse response = new LoginResponse();
         response.setToken("mock-jwt-token");
         response.setUserId(1L);
         response.setPhone("13800138000");
         response.setRole("SALES");
         response.setNickname("测试用户");
-        
+
         // 模拟服务层返回
-        when(authService.login(any(AuthController.LoginRequest.class))).thenReturn(response);
+        when(authService.login(any(LoginRequest.class))).thenReturn(response);
         
         // 执行测试
         mockMvc.perform(post("/api/auth/login")
@@ -93,12 +95,12 @@ public class AuthControllerTest {
     @Test
     public void testLogin_WrongPassword() throws Exception {
         // 准备测试数据
-        AuthController.LoginRequest request = new AuthController.LoginRequest();
+        LoginRequest request = new LoginRequest();
         request.setPhone("13800138000");
         request.setPassword("wrongpassword");
-        
+
         // 模拟服务层抛出异常
-        when(authService.login(any(AuthController.LoginRequest.class)))
+        when(authService.login(any(LoginRequest.class)))
                 .thenThrow(new com.example.common.exception.BusinessException("密码错误"));
         
         // 执行测试

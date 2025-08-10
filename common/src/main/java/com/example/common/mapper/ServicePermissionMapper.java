@@ -1,5 +1,6 @@
 package com.example.common.mapper;
 
+import com.example.common.annotation.DataAccessIgnore;
 import com.example.common.entity.ServiceDataPermission;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -33,6 +34,7 @@ import java.util.List;
  * @date 2025-08-01
  * @since 1.0.0
  */
+@DataAccessIgnore
 @Mapper
 public interface ServicePermissionMapper {
     
@@ -53,6 +55,7 @@ public interface ServicePermissionMapper {
      * @param operationType 操作类型
      * @return 权限配置信息，如果不存在返回null
      */
+    @DataAccessIgnore
     ServiceDataPermission findPermission(@Param("serviceName") String serviceName,
                                         @Param("tableName") String tableName,
                                         @Param("operationType") String operationType);
@@ -88,6 +91,7 @@ public interface ServicePermissionMapper {
      *
      * @return 启用的权限配置列表
      */
+    @DataAccessIgnore
     List<ServiceDataPermission> selectAllEnabled();
     
     /**

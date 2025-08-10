@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    
+    <settings>
+        <!-- 开启驼峰命名自动映射 -->
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+        <!-- 开启延迟加载 -->
+        <setting name="lazyLoadingEnabled" value="true"/>
+        <!-- 按需加载 -->
+        <setting name="aggressiveLazyLoading" value="false"/>
+        <!-- 开启二级缓存 -->
+        <setting name="cacheEnabled" value="true"/>
+        <!-- 日志实现 -->
+        <setting name="logImpl" value="SLF4J"/>
+        <!-- 自动生成主键 -->
+        <setting name="useGeneratedKeys" value="true"/>
+        <!-- 超时时间 -->
+        <setting name="defaultStatementTimeout" value="30"/>
+        <!-- 结果集大小限制 -->
+        <setting name="defaultFetchSize" value="100"/>
+    </settings>
+    
+    <typeAliases>
+        <!-- 实体类别名包扫描 -->
+        <package name="com.example.data.entity"/>
+    </typeAliases>
+    
+    <typeHandlers>
+        <!-- 枚举类型处理器 -->
+        <typeHandler handler="org.apache.ibatis.type.EnumTypeHandler" 
+                     javaType="com.example.data.entity.User$UserStatus"/>
+        <typeHandler handler="org.apache.ibatis.type.EnumTypeHandler" 
+                     javaType="com.example.data.entity.CustomerLead$LeadStatus"/>
+        <typeHandler handler="org.apache.ibatis.type.EnumTypeHandler" 
+                     javaType="com.example.data.entity.CustomerLead$AuditStatus"/>
+    </typeHandlers>
+    
+    <!-- Mappers will be auto-scanned by @MapperScan annotation -->
+    
+</configuration>

@@ -46,6 +46,9 @@
                      javaType="com.example.data.entity.Commission$SettlementStatus"/>
         <typeHandler handler="org.apache.ibatis.type.EnumTypeHandler" 
                      javaType="com.example.data.entity.InvitationCode$InvitationCodeStatus"/>
+        <!-- 自定义类型处理器 -->
+        <typeHandler handler="com.example.data.typehandler.StringListTypeHandler" 
+                     javaType="java.util.List"/>
     </typeHandlers>
     
     <mappers>

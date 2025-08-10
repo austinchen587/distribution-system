@@ -4,16 +4,8 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
-        namespace: public
-        group: DEFAULT_GROUP
+        enabled: false
       config:
-        server-addr: localhost:8848
-        namespace: public
-        group: DEFAULT_GROUP
-        file-extension: yaml
-        refresh-enabled: true
-        shared-configs:
-          - data-id: common-dev.yaml
-            group: DEFAULT_GROUP
-            refresh: true
+        enabled: false
+        import-check:
+          enabled: false

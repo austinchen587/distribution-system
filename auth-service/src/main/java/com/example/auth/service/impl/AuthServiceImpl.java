@@ -100,29 +100,23 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("该手机号已注册");
         }
         
-        // 4. 处理邀请码（可选）
-        Long inviterId = null;
-        if (StringUtils.hasText(request.getInviteCode())) {
-            User inviter = userMapper.selectByInviteCode(request.getInviteCode());
-            if (inviter == null) {
-                throw new BusinessException("邀请码无效");
-            }
-            inviterId = inviter.getId();
-        }
+        // 4. 处理上级关系（可选）
+        Long parentId = null;
+        // TODO: 邀请码功能暂未实现，后续可扩展
         
-        // 5. 创建用户
+        // 5. 创建用户（贴合当前DDL：仅设存在列，同时补充 nickname/invite_code/inviter_id/total_gmv）
         User user = new User();
         user.setPhone(request.getPhone());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(UserRole.AGENT); // 默认角色为代理
+        user.setStatus("active");
         user.setNickname(request.getNickname() != null ? request.getNickname() : "用户" + request.getPhone().substring(7));
         user.setInviteCode(generateInviteCode());
-        user.setRole(UserRole.AGENT); // 默认角色为代理
-        user.setInviterId(inviterId);
-        user.setStatus("active");
+        user.setInviterId(null); // 顶层注册无邀请人
         user.setTotalGmv(BigDecimal.ZERO);
-        
+
         userMapper.insert(user);
-        
+
         // 6. 删除已使用的验证码
         redisTemplate.delete(cacheKey);
         
@@ -133,7 +127,7 @@ public class AuthServiceImpl implements AuthService {
         LoginResponse response = new LoginResponse();
         response.setToken(token);
         response.setUserId(user.getId());
-        response.setNickname(user.getNickname());
+        response.setNickname(user.getUsername());
         response.setPhone(user.getPhone());
         response.setRole(user.getRole().name());
         
@@ -143,32 +137,41 @@ public class AuthServiceImpl implements AuthService {
     
     @Override
     public LoginResponse login(LoginRequest request) {
-        log.info("用户登录请求：phone={}", request.getPhone());
-        
+        log.info("[v2] 用户登录请求：phone={}", request.getPhone());
+
         // 1. 查询用户
         User user = userMapper.selectByPhone(request.getPhone());
         if (user == null) {
-            throw new BusinessException("用户不存在");
+            log.warn("登录失败：用户不存在，phone={}", request.getPhone());
+            throw new BusinessException(com.example.common.constants.ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
-        
+
         // 2. 验证密码
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new BusinessException("密码错误");
+            log.warn("登录失败：密码不匹配，phone={}", request.getPhone());
+            throw new BusinessException(com.example.common.constants.ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
-        
+
         // 3. 检查用户状态
         if ("banned".equals(user.getStatus())) {
-            throw new BusinessException("账号已被禁用");
+            log.warn("登录失败：账号被禁用，phone={}", request.getPhone());
+            throw new BusinessException(com.example.common.constants.ErrorCode.FORBIDDEN, "账号已被禁用");
         }
-        
+
         // 4. 生成 Token
-        String token = JwtUtils.generateToken(user.getId().toString(), user.getRole().name());
+        String token;
+        try {
+            token = JwtUtils.generateToken(user.getId().toString(), user.getRole().name());
+        } catch (Exception e) {
+            log.error("生成Token失败: userId={}, phone={}, err={}", user.getId(), user.getPhone(), e.getMessage(), e);
+            throw new BusinessException(com.example.common.constants.ErrorCode.INTERNAL_SERVER_ERROR, "生成Token失败");
+        }
         
         // 5. 构建响应
         LoginResponse response = new LoginResponse();
         response.setToken(token);
         response.setUserId(user.getId());
-        response.setNickname(user.getNickname());
+        response.setNickname(user.getUsername());
         response.setPhone(user.getPhone());
         response.setRole(user.getRole().name());
         

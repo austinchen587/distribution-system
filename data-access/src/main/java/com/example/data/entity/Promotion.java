@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import javax.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -55,9 +54,9 @@ public class Promotion {
     private String contentUrl;
     
     /**
-     * 内容标签 (JSON数组)
+     * 内容标签 (逗号分隔字符串)
      */
-    private List<String> tags;
+    private String tags;
     
     /**
      * 代理期望获得的奖励
@@ -184,11 +183,11 @@ public class Promotion {
         this.contentUrl = contentUrl;
     }
     
-    public List<String> getTags() {
+    public String getTags() {
         return tags;
     }
     
-    public void setTags(List<String> tags) {
+    public void setTags(String tags) {
         this.tags = tags;
     }
     

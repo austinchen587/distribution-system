@@ -6,8 +6,12 @@ spring:
     nacos:
       config:
         enabled: false
+        import-check:
+          enabled: false
       discovery:
         enabled: false
+        import-check:
+          enabled: false
   datasource:
     url: jdbc:mysql://localhost:3306/distribution_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
@@ -19,6 +23,29 @@ spring:
 server:
   port: 8081
 
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.example.auth.entity
+  type-handlers-package: com.example.auth.typehandler
+  configuration:
+    map-underscore-to-camel-case: true
+
 logging:
   level:
     com.example: DEBUG
+
+data:
+  access:
+    interceptor:
+      enabled: false
+
+# Swagger/OpenAPI 配置（开发环境）
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  packages-to-scan: com.example.auth.controller
+  paths-to-match: /api/**

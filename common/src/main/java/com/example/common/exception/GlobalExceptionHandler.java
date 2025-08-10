@@ -4,8 +4,11 @@ import com.example.common.dto.CommonResult;
 import com.example.common.constants.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -19,55 +22,87 @@ public class GlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     
     @ExceptionHandler(BusinessException.class)
-    public CommonResult<Object> handleBusinessException(BusinessException e) {
+    public ResponseEntity<CommonResult<Object>> handleBusinessException(BusinessException e) {
         logger.warn("业务异常: {}", e.getMessage());
 
-        // 如果有业务错误码，使用新的错误响应格式
+        CommonResult<Object> body;
         if (e.getErrorCode() != null) {
             Map<String, Object> errorData = new HashMap<>();
             errorData.put("error_code", e.getErrorCode());
-            return new CommonResult<>(e.getCode(), false, e.getMessage(), errorData);
+            body = new CommonResult<>(e.getCode(), false, e.getMessage(), errorData);
+        } else {
+            body = CommonResult.error(e.getCode(), e.getMessage());
         }
+        return ResponseEntity.status(HttpStatus.valueOf(body.getCode())).body(body);
+    }
 
-        // 向后兼容的处理方式
-        return CommonResult.error(e.getCode(), e.getMessage());
-    }
-    
     @ExceptionHandler(AuthenticationException.class)
-    public CommonResult<String> handleAuthenticationException(AuthenticationException e) {
+    public ResponseEntity<CommonResult<Map<String, Object>>> handleAuthenticationException(AuthenticationException e) {
         logger.warn("认证异常: {}", e.getMessage());
-        return CommonResult.unauthorized();
+        CommonResult<Map<String, Object>> body = CommonResult.unauthorizedWithErrorCode();
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
-    
+
     @ExceptionHandler(AuthorizationException.class)
-    public CommonResult<String> handleAuthorizationException(AuthorizationException e) {
+    public ResponseEntity<CommonResult<Map<String, Object>>> handleAuthorizationException(AuthorizationException e) {
         logger.warn("授权异常: {}", e.getMessage());
-        return CommonResult.forbidden();
+        CommonResult<Map<String, Object>> body = CommonResult.forbiddenWithErrorCode();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
-    
+
+    @ExceptionHandler(DataAccessDeniedException.class)
+    public ResponseEntity<CommonResult<Map<String, Object>>> handleDataAccessDeniedException(DataAccessDeniedException e) {
+        logger.warn("数据访问受限: {}", e.getDetailedMessage());
+        Map<String, Object> data = new HashMap<>();
+        data.put("error_code", e.getErrorCode());
+        data.put("operation", e.getOperationKey());
+        CommonResult<Map<String, Object>> body = CommonResult.error(ErrorCode.FORBIDDEN, data);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public CommonResult<String> handleValidationException(MethodArgumentNotValidException e) {
+    public ResponseEntity<CommonResult<String>> handleValidationException(MethodArgumentNotValidException e) {
         String errorMessage = e.getBindingResult().getFieldError().getDefaultMessage();
         logger.warn("参数校验异常: {}", errorMessage);
-        return CommonResult.badRequest(errorMessage);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CommonResult.badRequest(errorMessage));
     }
-    
+
     @ExceptionHandler(BindException.class)
-    public CommonResult<String> handleBindException(BindException e) {
+    public ResponseEntity<CommonResult<String>> handleBindException(BindException e) {
         String errorMessage = e.getBindingResult().getFieldError().getDefaultMessage();
         logger.warn("参数绑定异常: {}", errorMessage);
-        return CommonResult.badRequest(errorMessage);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CommonResult.badRequest(errorMessage));
     }
-    
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<CommonResult<String>> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        logger.warn("请求体解析失败: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CommonResult.badRequest("请求体格式错误"));
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
-    public CommonResult<String> handleConstraintViolationException(ConstraintViolationException e) {
+    public ResponseEntity<CommonResult<String>> handleConstraintViolationException(ConstraintViolationException e) {
         logger.warn("约束校验异常: {}", e.getMessage());
-        return CommonResult.badRequest(e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(CommonResult.badRequest(e.getMessage()));
     }
-    
+
     @ExceptionHandler(Exception.class)
-    public CommonResult<Map<String, Object>> handleException(Exception e) {
-        logger.error("系统异常", e);
-        return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<CommonResult<Map<String, Object>>> handleException(Exception e) {
+        // 记录更详细的异常信息以便快速定位
+        String simple = e.getClass().getSimpleName() + ": " + (e.getMessage() != null ? e.getMessage() : "");
+        logger.error("系统异常: {}", simple, e);
+        Map<String, Object> data = new HashMap<>();
+        data.put("error_code", ErrorCode.INTERNAL_SERVER_ERROR.getErrorCode());
+        data.put("exception", e.getClass().getName());
+        String top = null;
+        if (e.getStackTrace() != null && e.getStackTrace().length > 0) {
+            StackTraceElement ste = e.getStackTrace()[0];
+            top = ste.getClassName() + "." + ste.getMethodName() + ":" + ste.getLineNumber();
+        }
+        if (top != null) {
+            data.put("top_stack", top);
+        }
+        CommonResult<Map<String, Object>> body = CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR, data);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 }

@@ -5,6 +5,8 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -45,8 +47,11 @@ import java.util.UUID;
 public class DataAccessContextExtractor {
 
     private static final Logger log = LoggerFactory.getLogger(DataAccessContextExtractor.class);
-    
+
     private static final String DEFAULT_SERVICE_NAME = "unknown-service";
+
+    @Autowired(required = false)
+    private Environment environment;
     
     /**
      * 从AOP切点提取数据访问上下文
@@ -102,26 +107,24 @@ public class DataAccessContextExtractor {
      */
     private String extractServiceName(ProceedingJoinPoint joinPoint) {
         try {
-            // 从包名中提取服务名
-            String packageName = joinPoint.getTarget().getClass().getPackage().getName();
-            
-            // 查找包含service的包名部分
-            String[] parts = packageName.split("\\.");
-            for (String part : parts) {
-                if (part.contains("service") || part.endsWith("-service")) {
-                    return part;
+            // 优先使用应用名
+            if (environment != null) {
+                String appName = environment.getProperty("spring.application.name");
+                if (StringUtils.hasText(appName)) {
+                    return appName;
                 }
             }
-            
-            // 如果没有找到，尝试从类名中提取
-            String className = joinPoint.getTarget().getClass().getSimpleName();
-            if (className.contains("Service")) {
-                return className.toLowerCase().replace("service", "-service");
+            // 备选：从方法声明类型的包名推导，例如 com.example.auth.mapper -> auth-service
+            MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+            Package pkg = signature.getDeclaringType().getPackage();
+            if (pkg != null) {
+                String packageName = pkg.getName();
+                if (packageName.contains(".auth.")) return "auth-service";
+                if (packageName.contains(".lead.")) return "lead-service";
+                if (packageName.contains(".user.")) return "user-service";
+                if (packageName.contains(".common.")) return "common";
             }
-            
-            // 默认返回通用服务名
             return DEFAULT_SERVICE_NAME;
-            
         } catch (Exception e) {
             log.warn("提取服务名称失败", e);
             return DEFAULT_SERVICE_NAME;
@@ -136,16 +139,20 @@ public class DataAccessContextExtractor {
      */
     private String extractTableName(ProceedingJoinPoint joinPoint) {
         try {
-            // 从Mapper接口名中提取表名
+            // 优先从方法声明类型（接口）名中提取
+            MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+            String declaringSimple = signature.getDeclaringType().getSimpleName();
+            if (declaringSimple.endsWith("Mapper")) {
+                String tableName = declaringSimple.substring(0, declaringSimple.length() - 6);
+                return camelToSnakeCase(tableName);
+            }
+            // 退化到 target class 名称
             String className = joinPoint.getTarget().getClass().getSimpleName();
-            
             if (className.endsWith("Mapper")) {
                 String tableName = className.substring(0, className.length() - 6);
                 return camelToSnakeCase(tableName);
             }
-            
             return "unknown_table";
-            
         } catch (Exception e) {
             log.warn("提取表名失败", e);
             return "unknown_table";

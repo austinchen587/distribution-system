@@ -25,7 +25,7 @@ import javax.sql.DataSource;
  * @version 1.0
  * @since 2025-08-03
  */
-@Configuration
+@Configuration("dataAccessLayerConfig")
 @EnableTransactionManagement
 @MapperScan(basePackages = "com.example.data.mapper")
 public class DataAccessConfig {

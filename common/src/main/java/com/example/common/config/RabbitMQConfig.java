@@ -17,6 +17,7 @@ import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.retry.backoff.ExponentialBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
@@ -101,10 +102,11 @@ public class RabbitMQConfig {
      * <p>设置消息转换器、确认模式和重试策略
      */
     @Bean
+    @ConditionalOnMissingBean(RabbitTemplate.class)
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter messageConverter) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(messageConverter);
-        
+
         // 开启发布确认
         template.setConfirmCallback((correlationData, ack, cause) -> {
             if (ack) {
@@ -154,9 +156,10 @@ public class RabbitMQConfig {
      * RabbitMQ监听器容器工厂
      */
     @Bean
+    @ConditionalOnMissingBean(RabbitListenerContainerFactory.class)
     public RabbitListenerContainerFactory<SimpleMessageListenerContainer> rabbitListenerContainerFactory(
             ConnectionFactory connectionFactory, MessageConverter messageConverter) {
-        
+
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(messageConverter);

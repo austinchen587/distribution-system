@@ -27,9 +27,9 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
  * @date 2025-08-01
  * @since 1.0.0
  */
-@Configuration
+@Configuration("commonDataAccessConfig")
 @EnableAspectJAutoProxy(proxyTargetClass = true)
-public class DataAccessConfig {
+public class CommonDataAccessConfig {
     
     // 这里可以添加其他数据访问相关的Bean配置
     

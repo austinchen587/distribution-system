@@ -1,0 +1,27 @@
+# 本地开发配置
+spring:
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
+  datasource:
+    url: jdbc:mysql://localhost:3306/distribution_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: Admin123.
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    host: localhost
+    port: 6379
+    database: 5
+server:
+  port: 8086
+
+logging:
+  level:
+    com.example: DEBUG
+
+# Configuration from Nacos: user-service-dev.yaml
