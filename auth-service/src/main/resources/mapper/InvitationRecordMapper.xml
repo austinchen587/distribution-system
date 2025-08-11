@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.auth.mapper.InvitationRecordMapper">
+
+    <insert id="insert" parameterType="com.example.auth.entity.InvitationRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO invitation_records (
+            inviter_id, invitee_id, invite_code, status, registered_at, ip_address, user_agent
+        ) VALUES (
+            #{inviterId}, #{inviteeId}, #{inviteCode}, #{status}, #{registeredAt}, #{ipAddress}, #{userAgent}
+        )
+    </insert>
+
+</mapper>
+

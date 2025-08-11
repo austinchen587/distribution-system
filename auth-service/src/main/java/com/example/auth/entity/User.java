@@ -69,17 +69,7 @@ public class User {
      */
     private String status;
 
-    /** 昵称 */
-    private String nickname;
 
-    /** 邀请码 */
-    private String inviteCode;
-
-    /** 邀请人ID */
-    private Long inviterId;
-
-    /** 累计GMV */
-    private BigDecimal totalGmv;
 
 
     /**

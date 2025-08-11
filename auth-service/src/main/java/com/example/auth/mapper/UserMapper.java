@@ -82,5 +82,13 @@ public interface UserMapper {
      */
     boolean existsByPhone(@Param("phone") String phone);
 
-    // 删除：DDL无 email 列，移除邮箱存在性检查接口
+    /**
+     * 检查用户名是否已存在
+     */
+    boolean existsByUsername(@Param("username") String username);
+
+    /**
+     * 检查邮箱是否已存在（仅当 email 非空时调用）
+     */
+    boolean existsByEmail(@Param("email") String email);
 }

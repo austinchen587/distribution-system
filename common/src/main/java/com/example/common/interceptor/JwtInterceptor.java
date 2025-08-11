@@ -69,13 +69,16 @@ public class JwtInterceptor implements HandlerInterceptor {
     }
     
     private boolean shouldSkipAuthentication(String requestURI, String method) {
-        // 跳过认证的路径
-        return requestURI.startsWith("/api/auth/") ||
-               requestURI.startsWith("/swagger-ui/") ||
-               requestURI.startsWith("/v3/api-docs") ||
-               requestURI.startsWith("/actuator/health") ||
-               requestURI.equals("/favicon.ico") ||
-               "OPTIONS".equals(method);
+        // 仅跳过公开认证接口与文档/健康检查
+        boolean publicAuth = "/api/auth/login".equals(requestURI)
+                || "/api/auth/register".equals(requestURI)
+                || "/api/auth/send-code".equals(requestURI);
+        return publicAuth
+                || requestURI.startsWith("/swagger-ui/")
+                || requestURI.startsWith("/v3/api-docs")
+                || requestURI.startsWith("/actuator/health")
+                || "/favicon.ico".equals(requestURI)
+                || "OPTIONS".equals(method);
     }
     
     private void writeErrorResponse(HttpServletResponse response, ErrorCode errorCode) throws IOException {

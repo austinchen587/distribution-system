@@ -52,7 +52,31 @@ public class AuthController {
     @Operation(summary = "用户注册", description = "新用户注册，支持销售和代理角色注册")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "注册成功"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "参数错误或手机号已存在")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                responseCode = "400",
+                description = "唯一性校验失败或参数错误",
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = com.example.common.dto.CommonResult.class),
+                    examples = {
+                        @io.swagger.v3.oas.annotations.media.ExampleObject(
+                            name = "用户名已存在",
+                            summary = "用户名冲突",
+                            value = "{\"code\":400,\"success\":false,\"message\":\"用户名已存在\",\"data\":null,\"timestamp\":1712345678901}"
+                        ),
+                        @io.swagger.v3.oas.annotations.media.ExampleObject(
+                            name = "邮箱已被使用",
+                            summary = "邮箱冲突",
+                            value = "{\"code\":400,\"success\":false,\"message\":\"邮箱已被使用\",\"data\":null,\"timestamp\":1712345678901}"
+                        ),
+                        @io.swagger.v3.oas.annotations.media.ExampleObject(
+                            name = "手机号已注册",
+                            summary = "手机号冲突",
+                            value = "{\"code\":400,\"success\":false,\"message\":\"该手机号已注册\",\"data\":null,\"timestamp\":1712345678901}"
+                        )
+                    }
+                )
+            )
     })
     @PostMapping("/register")
     public CommonResult<RegisterResponse> register(
@@ -101,7 +125,7 @@ public class AuthController {
         userInfo.setUserId(user.getId());
         userInfo.setPhone(user.getPhone());
         userInfo.setRole(user.getRole().getCode());
-        userInfo.setNickname(user.getNickname());
+        userInfo.setNickname(user.getUsername());
         userInfo.setStatus(user.getStatus());
         
         return CommonResult.success(userInfo);

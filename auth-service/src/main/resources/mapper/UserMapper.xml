@@ -33,7 +33,7 @@
 
     <!-- 基础字段列表（贴合DDL） -->
     <sql id="Base_Column_List">
-        id, phone, password, `role`, `status`, created_at, updated_at
+        id, username, email, phone, password, `role`, parent_id, `status`, last_login_at, created_at, updated_at
     </sql>
 
     <!-- 根据手机号查询用户 -->
@@ -62,13 +62,13 @@
 
     <!-- 删除：DDL无 email 列，移除按邮箱查询SQL片段 -->
 
-    <!-- 插入用户记录（贴合DDL，仅插入存在列） -->
+    <!-- 插入用户记录（对齐 v3 设计，仅插入存在列） -->
     <insert id="insert" parameterType="com.example.auth.entity.User" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (
-            phone, password, role, status, nickname, invite_code, inviter_id, total_gmv
+            username, email, phone, password, role, status, parent_id
         ) VALUES (
-            #{phone}, #{password}, #{role,typeHandler=com.example.auth.typehandler.UserRoleTypeHandler}, #{status},
-            #{nickname}, #{inviteCode}, #{inviterId}, #{totalGmv}
+            #{username}, #{email}, #{phone}, #{password},
+            #{role,typeHandler=com.example.auth.typehandler.UserRoleTypeHandler}, #{status}, #{parentId}
         )
     </insert>
 
@@ -92,5 +92,16 @@
     </select>
 
     <!-- 删除：DDL无 email 列，existsByEmail 不再支持 -->
+
+
+    <!-- 检查用户名是否已存在 -->
+    <select id="existsByUsername" resultType="boolean">
+        SELECT COUNT(1) > 0 FROM users WHERE username = #{username}
+    </select>
+
+    <!-- 检查邮箱是否已存在 -->
+    <select id="existsByEmail" resultType="boolean">
+        SELECT COUNT(1) > 0 FROM users WHERE email = #{email}
+    </select>
 
 </mapper>

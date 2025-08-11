@@ -8,6 +8,10 @@ import com.example.auth.dto.CreateSubordinateResponse;
 import com.example.auth.entity.User;
 import com.example.auth.mapper.UserMapper;
 import com.example.auth.service.AuthService;
+import com.example.auth.mapper.InvitationCodeMapper;
+import com.example.auth.mapper.InvitationRecordMapper;
+import com.example.auth.entity.InvitationCode;
+import com.example.auth.entity.InvitationRecord;
 import com.example.common.dto.CommonResult;
 import com.example.common.enums.UserRole;
 import com.example.common.exception.BusinessException;
@@ -59,10 +63,16 @@ public class AuthServiceImpl implements AuthService {
     
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
-    
+
     @Autowired
     private StringRedisTemplate redisTemplate;
-    
+
+    @Autowired
+    private InvitationCodeMapper invitationCodeMapper;
+
+    @Autowired
+    private InvitationRecordMapper invitationRecordMapper;
+
     /**
      * 验证码 Redis key 前缀
      */
@@ -95,35 +105,62 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("验证码错误或已过期");
         }
         
-        // 3. 检查手机号是否已注册
+        // 3. 基础唯一性检查（手机号/用户名/邮箱）
         if (userMapper.existsByPhone(request.getPhone())) {
             throw new BusinessException("该手机号已注册");
         }
+        if (userMapper.existsByUsername(request.getUsername())) {
+            throw new BusinessException("用户名已存在");
+        }
+        if (StringUtils.hasText(request.getEmail()) && userMapper.existsByEmail(request.getEmail())) {
+            throw new BusinessException("邮箱已被使用");
+        }
         
-        // 4. 处理上级关系（可选）
+        // 4/5. 校验/解析邀请码（可选）并确定上级 parentId
         Long parentId = null;
-        // TODO: 邀请码功能暂未实现，后续可扩展
-        
-        // 5. 创建用户（贴合当前DDL：仅设存在列，同时补充 nickname/invite_code/inviter_id/total_gmv）
+        if (StringUtils.hasText(request.getInviteCode())) {
+            parentId = validateAndResolveInviterId(request.getInviteCode(), request.getRole());
+        }
+
+        // 6. 创建用户（对齐 v3 DDL）
         User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(StringUtils.hasText(request.getEmail()) ? request.getEmail() : null);
         user.setPhone(request.getPhone());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(UserRole.AGENT); // 默认角色为代理
+        user.setRole(UserRole.fromCode(request.getRole().toLowerCase()));
         user.setStatus("active");
-        user.setNickname(request.getNickname() != null ? request.getNickname() : "用户" + request.getPhone().substring(7));
-        user.setInviteCode(generateInviteCode());
-        user.setInviterId(null); // 顶层注册无邀请人
-        user.setTotalGmv(BigDecimal.ZERO);
+        user.setParentId(parentId);
 
-        userMapper.insert(user);
+        try {
+            userMapper.insert(user);
+        } catch (org.springframework.dao.DuplicateKeyException dke) {
+            String msg = dke.getMessage();
+            if (msg != null) {
+                String lower = msg.toLowerCase();
+                if (lower.contains("users.username")) {
+                    throw new BusinessException("用户名已存在");
+                } else if (lower.contains("users.email")) {
+                    throw new BusinessException("邮箱已被使用");
+                } else if (lower.contains("users.phone")) {
+                    throw new BusinessException("该手机号已注册");
+                }
+            }
+            throw new BusinessException("注册失败，唯一约束冲突");
+        }
 
-        // 6. 删除已使用的验证码
+        // 7. 删除已使用的验证码
         redisTemplate.delete(cacheKey);
-        
-        // 7. 生成 Token
+
+        // 8. 生成 Token
         String token = JwtUtils.generateToken(user.getId().toString(), user.getRole().name());
-        
-        // 8. 构建响应
+
+        // 9. 若使用邀请码，记录 invitation_records 并更新 codes 使用计数
+        if (StringUtils.hasText(request.getInviteCode())) {
+            postRegisterRecordInvitation(user.getId(), parentId, request.getInviteCode());
+        }
+
+        // 10. 构建响应
         LoginResponse response = new LoginResponse();
         response.setToken(token);
         response.setUserId(user.getId());
@@ -266,28 +303,27 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("该手机号已注册");
         }
         
-        // 5. 创建用户
+        // 5. 创建用户（对齐 v3 DDL）
         User newUser = new User();
+        newUser.setUsername("user" + request.getPhone().substring(7)); // 临时用户名，可按需来自请求
+        newUser.setEmail(null);
         newUser.setPhone(request.getPhone());
         newUser.setPassword(passwordEncoder.encode(request.getPassword()));
-        newUser.setNickname(request.getNickname() != null ? request.getNickname() : "用户" + request.getPhone().substring(7));
-        newUser.setInviteCode(generateInviteCode());
         newUser.setRole(targetRole);
-        newUser.setInviterId(currentUser.getId()); // 自动绑定创建者为邀请人
+        newUser.setParentId(currentUser.getId()); // 上级为创建者
         newUser.setStatus("active");
-        newUser.setTotalGmv(BigDecimal.ZERO);
-        
+
         userMapper.insert(newUser);
-        
-        // 6. 构建响应
+
+        // 6. 构建响应（去除与昵称/邀请码相关字段）
         CreateSubordinateResponse response = new CreateSubordinateResponse();
         response.setUserId(newUser.getId());
         response.setPhone(newUser.getPhone());
-        response.setNickname(newUser.getNickname());
+        response.setNickname(newUser.getUsername());
         response.setRole(newUser.getRole().getCode());
-        response.setInviteCode(newUser.getInviteCode());
+        response.setInviteCode(null);
         response.setInviterId(currentUser.getId());
-        response.setInviterNickname(currentUser.getNickname());
+        response.setInviterNickname(currentUser.getUsername());
         
         log.info("下级用户创建成功：userId={}, phone={}, role={}, inviterId={}", 
                 newUser.getId(), newUser.getPhone(), newUser.getRole(), currentUser.getId());
@@ -339,12 +375,52 @@ public class AuthServiceImpl implements AuthService {
      * 
      * @return 邀请码
      */
-    private String generateInviteCode() {
-        // 简单实现，实际应该使用更复杂的算法
-        String code;
-        do {
-            code = "INV" + String.format("%06d", (int)(Math.random() * 1000000));
-        } while (userMapper.selectByInviteCode(code) != null);
-        return code;
+    private Long validateAndResolveInviterId(String code, String targetRoleRaw) {
+        InvitationCode ic = invitationCodeMapper.selectByCodeForUpdate(code);
+        if (ic == null) {
+            throw new BusinessException("邀请码不存在");
+        }
+        if (!"active".equalsIgnoreCase(ic.getStatus())) {
+            throw new BusinessException("邀请码不可用");
+        }
+        if (ic.getExpiresAt() != null && ic.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+            throw new BusinessException("邀请码已过期");
+        }
+        if (ic.getMaxUsage() != null && ic.getUsageCount() != null && ic.getUsageCount() >= ic.getMaxUsage()) {
+            throw new BusinessException("邀请码已达最大使用次数");
+        }
+        // 验证角色是否匹配（若 codes 限定目标角色）
+        if (ic.getTargetRole() != null) {
+            String targetRole = targetRoleRaw == null ? null : targetRoleRaw.toLowerCase();
+            if (targetRole != null && !ic.getTargetRole().equalsIgnoreCase(targetRole)) {
+                throw new BusinessException("邀请码不支持该角色注册");
+            }
+        }
+        return ic.getUserId();
+    }
+
+    private void postRegisterRecordInvitation(Long inviteeId, Long inviterId, String code) {
+        try {
+            // 写入邀请记录
+            com.example.auth.entity.InvitationRecord rec = new com.example.auth.entity.InvitationRecord();
+            rec.setInviterId(inviterId);
+            rec.setInviteeId(inviteeId);
+            rec.setInviteCode(code);
+            rec.setStatus("success");
+            rec.setRegisteredAt(java.time.LocalDateTime.now());
+            // TODO: 从请求上下文注入 IP/UA
+            rec.setIpAddress(null);
+            rec.setUserAgent(null);
+            invitationRecordMapper.insert(rec);
+
+            // 增加使用次数，必要时禁用
+            invitationCodeMapper.increaseUsage(code);
+            InvitationCode ic = invitationCodeMapper.selectByCodeForUpdate(code);
+            if (ic.getMaxUsage() != null && ic.getUsageCount() != null && ic.getUsageCount() >= ic.getMaxUsage()) {
+                invitationCodeMapper.deactivate(code);
+            }
+        } catch (Exception e) {
+            log.warn("记录邀请码使用失败，但不影响注册流程: {}", e.getMessage());
+        }
     }
 }

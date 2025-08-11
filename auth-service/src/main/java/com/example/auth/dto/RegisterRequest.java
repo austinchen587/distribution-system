@@ -28,12 +28,16 @@ public class RegisterRequest {
     @Schema(description = "角色（sales/agent）", required = true, example = "sales")
     private String role;
     
-    @Schema(description = "邀请码（代理注册时必填）", example = "INVITE123")
+    @Schema(description = "邀请码（使用 invitation_codes 表中的 code）", example = "INV123ABC")
     private String inviteCode;
-    
-    @Schema(description = "昵称", example = "张三")
-    private String nickname;
-    
+
+    @Schema(description = "用户名（将写入 users.username）", required = true, example = "zhangsan")
+    @NotBlank(message = "用户名不能为空")
+    private String username;
+
+    @Schema(description = "邮箱（可选），为空时写入 NULL", example = "zhangsan@example.com")
+    private String email;
+
     // Getters and setters
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
@@ -45,6 +49,8 @@ public class RegisterRequest {
     public void setRole(String role) { this.role = role; }
     public String getInviteCode() { return inviteCode; }
     public void setInviteCode(String inviteCode) { this.inviteCode = inviteCode; }
-    public String getNickname() { return nickname; }
-    public void setNickname(String nickname) { this.nickname = nickname; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 }

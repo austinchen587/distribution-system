@@ -23,6 +23,11 @@ spring:
 server:
   port: 8081
 
+# 短信Mock开关（仅dev使用）
+sms:
+  mock:
+    enabled: true
+
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.example.auth.entity
@@ -33,6 +38,10 @@ mybatis:
 logging:
   level:
     com.example: DEBUG
+
+# 便于查看 Mock 验证码日志
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
 data:
   access:

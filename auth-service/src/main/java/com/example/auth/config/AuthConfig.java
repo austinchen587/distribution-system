@@ -9,6 +9,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -41,9 +42,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class AuthConfig implements WebMvcConfigurer {
     
     private final JwtInterceptor jwtInterceptor;
-    
-    public AuthConfig(JwtInterceptor jwtInterceptor) {
+    private final com.example.auth.security.JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public AuthConfig(JwtInterceptor jwtInterceptor, com.example.auth.security.JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtInterceptor = jwtInterceptor;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
     
     /**
@@ -97,6 +100,8 @@ public class AuthConfig implements WebMvcConfigurer {
                         // 其他所有请求都需要认证
                         .anyRequest().authenticated()
                 )
+                // 在用户名密码过滤器之前加入JWT过滤器
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 // 禁用默认的登录表单
                 .formLogin().disable()
                 // 禁用默认的HTTP Basic认证
