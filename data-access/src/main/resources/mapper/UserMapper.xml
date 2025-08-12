@@ -83,7 +83,7 @@
     </select>
 
 
-    <!-- 根据关键词搜索用户 -->
+    <!-- 根据关键词搜索用户（支持 parentId/日期范围） -->
     <select id="searchUsers" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
@@ -96,11 +96,20 @@
                 OR phone LIKE CONCAT('%', #{keyword}, '%')
             )
         </if>
+        <if test="parentId != null">
+            AND parent_id = #{parentId}
+        </if>
+        <if test="dateFrom != null and dateFrom != ''">
+            AND DATE(created_at) &gt;= #{dateFrom}
+        </if>
+        <if test="dateTo != null and dateTo != ''">
+            AND DATE(created_at) &lt;= #{dateTo}
+        </if>
         ORDER BY created_at DESC
         LIMIT #{offset}, #{limit}
     </select>
 
-    <!-- 根据条件查找用户列表 -->
+    <!-- 根据条件查找用户列表（支持 keyword/parentId/日期范围） -->
     <select id="findByConditions" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
@@ -115,11 +124,24 @@
         <if test="parentId != null">
             AND parent_id = #{parentId}
         </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                username LIKE CONCAT('%', #{keyword}, '%')
+                OR email LIKE CONCAT('%', #{keyword}, '%')
+                OR phone LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="dateFrom != null and dateFrom != ''">
+            AND DATE(created_at) &gt;= #{dateFrom}
+        </if>
+        <if test="dateTo != null and dateTo != ''">
+            AND DATE(created_at) &lt;= #{dateTo}
+        </if>
         ORDER BY created_at DESC
         LIMIT #{offset}, #{limit}
     </select>
 
-    <!-- 根据条件统计用户数量 -->
+    <!-- 根据条件统计用户数量（支持 role/status/parentId/keyword/dateFrom/dateTo） -->
     <select id="countByConditions" resultType="long">
         SELECT COUNT(*)
         FROM users
@@ -130,6 +152,49 @@
         <if test="status != null and status != ''">
             AND status = #{status}
         </if>
+        <if test="parentId != null">
+            AND parent_id = #{parentId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                username LIKE CONCAT('%', #{keyword}, '%')
+                OR email LIKE CONCAT('%', #{keyword}, '%')
+                OR phone LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="dateFrom != null and dateFrom != ''">
+            AND DATE(created_at) &gt;= #{dateFrom}
+        </if>
+        <if test="dateTo != null and dateTo != ''">
+            AND DATE(created_at) &lt;= #{dateTo}
+        </if>
+    </select>
+
+    <!-- 最近N天新增用户趋势（按日期分组） -->
+    <select id="countDailyNewUsers" resultType="map">
+        SELECT DATE(created_at) as day, COUNT(*) as cnt
+        FROM users
+        WHERE created_at &gt;= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(created_at)
+        ORDER BY day ASC
+    </select>
+
+    <!-- 最近N天新增用户趋势（按日期+角色分组） -->
+    <select id="countDailyNewUsersByRole" resultType="map">
+        SELECT DATE(created_at) as day, role as role, COUNT(*) as cnt
+        FROM users
+        WHERE created_at &gt;= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(created_at), role
+        ORDER BY day ASC, role ASC
+    </select>
+
+    <!-- 最近N天新增用户趋势（按日期+状态分组） -->
+    <select id="countDailyNewUsersByStatus" resultType="map">
+        SELECT DATE(created_at) as day, status as status, COUNT(*) as cnt
+        FROM users
+        WHERE created_at &gt;= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(created_at), status
+        ORDER BY day ASC, status ASC
     </select>
 
 </mapper>

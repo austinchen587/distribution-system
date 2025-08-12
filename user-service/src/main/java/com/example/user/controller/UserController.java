@@ -24,10 +24,10 @@ import javax.validation.constraints.Min;
 
 /**
  * 用户管理控制器
- * 
+ *
  * <p>提供用户管理的REST API接口，包含用户CRUD操作、搜索、统计、批量操作等功能。
  * 该控制器严格遵循RESTful设计原则，提供完整的用户管理能力。
- * 
+ *
  * <p>主要功能：
  * <ul>
  *   <li>用户基础管理：创建、查询、更新、删除</li>
@@ -37,11 +37,11 @@ import javax.validation.constraints.Min;
  *   <li>批量操作：批量状态更新、批量删除</li>
  *   <li>数据导出：用户数据导出功能</li>
  * </ul>
- * 
+ *
  * <p>权限控制：
  * 所有接口都需要JWT认证，并根据用户角色进行权限验证。
  * 用户只能操作其权限范围内的数据。
- * 
+ *
  * @author User Service Team
  * @version 1.0.0
  * @since 2025-08-07
@@ -53,13 +53,13 @@ import javax.validation.constraints.Min;
 @Tag(name = "用户管理", description = "用户管理相关接口")
 @SecurityRequirement(name = "BearerAuth")
 public class UserController {
-    
+
     @Autowired
     private UserService userService;
-    
+
     /**
      * 获取用户列表
-     * 
+     *
      * <p>分页查询用户列表，支持角色和状态筛选。
      * 返回的用户数据基于当前用户的权限范围进行过滤。
      */
@@ -73,23 +73,49 @@ public class UserController {
     public CommonResult<UserListResponse> getUsers(
             @Parameter(description = "页码，从1开始", example = "1")
             @RequestParam(defaultValue = "1") @Min(1) Integer page,
-            
+
             @Parameter(description = "每页数量，范围1-100", example = "20")
             @RequestParam(name = "page_size", defaultValue = "20") @Min(1) @Max(100) Integer pageSize,
-            
+
             @Parameter(description = "角色筛选", example = "sales")
             @RequestParam(required = false) String role,
-            
+
             @Parameter(description = "状态筛选", example = "active")
-            @RequestParam(required = false) String status) {
-        
-        log.info("获取用户列表: page={}, pageSize={}, role={}, status={}", page, pageSize, role, status);
-        return userService.getUsers(page, pageSize, role, status);
+            @RequestParam(required = false) String status,
+
+            @Parameter(description = "上级用户ID过滤", example = "1001")
+            @RequestParam(name = "parent_id", required = false) Long parentId,
+
+            @Parameter(description = "关键词（用户名/邮箱/手机号）", example = "张三")
+            @RequestParam(required = false) String keyword,
+
+            @Parameter(description = "创建时间起始", example = "2025-01-01")
+            @RequestParam(name = "date_from", required = false) String dateFrom,
+
+            @Parameter(description = "创建时间结束", example = "2025-12-31")
+            @RequestParam(name = "date_to", required = false) String dateTo) {
+
+        log.info("获取用户列表: page={}, pageSize={}, role={}, status={}, parentId={}, keyword={}, dateFrom={}, dateTo={}",
+                page, pageSize, role, status, parentId, keyword, dateFrom, dateTo);
+
+        // 统一走搜索逻辑，实现参数串联
+        UserSearchRequest request = new UserSearchRequest();
+        request.setPage(page);
+        request.setPageSize(pageSize);
+        request.setRole(role);
+        request.setStatus(status);
+        request.setParentId(parentId);
+        request.setKeyword(keyword);
+        request.setDateFrom(dateFrom);
+        request.setDateTo(dateTo);
+        request.setSortBy("createdAt");
+        request.setSortOrder("DESC");
+        return userService.searchUsers(request);
     }
-    
+
     /**
      * 创建用户
-     * 
+     *
      * <p>创建新的用户账号，包含完整的数据验证和权限检查。
      * 只能创建比当前用户权限低的角色，自动建立上下级关系。
      */
@@ -105,14 +131,14 @@ public class UserController {
     public CommonResult<UserResponse> createUser(
             @Parameter(description = "创建用户请求", required = true)
             @Valid @RequestBody CreateUserRequest request) {
-        
+
         log.info("创建用户: username={}, role={}", request.getUsername(), request.getRole());
         return userService.createUser(request);
     }
-    
+
     /**
      * 获取用户详情
-     * 
+     *
      * <p>根据用户ID获取用户的详细信息，包含基本信息、角色权限、层级关系等。
      * 只能查看权限范围内的用户信息。
      */
@@ -126,14 +152,14 @@ public class UserController {
     public CommonResult<UserResponse> getUserById(
             @Parameter(description = "用户ID", required = true, example = "1001")
             @PathVariable Long id) {
-        
+
         log.info("获取用户详情: id={}", id);
         return userService.getUserById(id);
     }
-    
+
     /**
      * 更新用户信息
-     * 
+     *
      * <p>更新用户的基本信息、角色、状态等，支持部分字段更新。
      * 包含权限验证，确保只能更新权限范围内的用户。
      */
@@ -150,17 +176,17 @@ public class UserController {
     public CommonResult<UserResponse> updateUser(
             @Parameter(description = "用户ID", required = true, example = "1001")
             @PathVariable Long id,
-            
+
             @Parameter(description = "更新用户请求", required = true)
             @Valid @RequestBody UpdateUserRequest request) {
-        
+
         log.info("更新用户: id={}", id);
         return userService.updateUser(id, request);
     }
-    
+
     /**
      * 删除用户
-     * 
+     *
      * <p>删除指定的用户账号，包含权限验证和关联数据处理。
      * 删除用户时需要处理其下级关系和相关业务数据。
      */
@@ -175,7 +201,7 @@ public class UserController {
     public CommonResult<Void> deleteUser(
             @Parameter(description = "用户ID", required = true, example = "1001")
             @PathVariable Long id) {
-        
+
         log.info("删除用户: id={}", id);
         return userService.deleteUser(id);
     }
@@ -222,9 +248,12 @@ public class UserController {
             @RequestParam(name = "sort_by", defaultValue = "createdAt") String sortBy,
 
             @Parameter(description = "排序方向", example = "DESC")
-            @RequestParam(name = "sort_order", defaultValue = "DESC") String sortOrder) {
+            @RequestParam(name = "sort_order", defaultValue = "DESC") String sortOrder,
 
-        log.info("搜索用户: keyword={}, page={}, pageSize={}", keyword, page, pageSize);
+            @Parameter(description = "上级用户ID过滤", example = "1001")
+            @RequestParam(name = "parent_id", required = false) Long parentId) {
+
+        log.info("搜索用户: keyword={}, page={}, pageSize={}, parentId={}", keyword, page, pageSize, parentId);
 
         UserSearchRequest request = new UserSearchRequest();
         request.setKeyword(keyword);
@@ -235,6 +264,7 @@ public class UserController {
         request.setLevel(level);
         request.setDateFrom(dateFrom);
         request.setDateTo(dateTo);
+        request.setParentId(parentId);
         request.setSortBy(sortBy);
         request.setSortOrder(sortOrder);
 
@@ -391,11 +421,11 @@ public class UserController {
             return CommonResult.error(userResult.getCode(), userResult.getMessage());
         }
 
-        // 构建搜索请求，查询该用户的下级
+        // 构建搜索请求，查询该用户的直接下级
         UserSearchRequest request = new UserSearchRequest();
         request.setPage(page);
         request.setPageSize(pageSize);
-        // TODO: 添加parentId筛选条件到UserSearchRequest
+        request.setParentId(id);
 
         return userService.searchUsers(request);
     }

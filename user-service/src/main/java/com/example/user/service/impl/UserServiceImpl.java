@@ -24,10 +24,10 @@ import java.util.stream.Collectors;
 
 /**
  * 用户管理服务实现类
- * 
+ *
  * <p>实现用户管理的核心业务逻辑，包含用户CRUD操作、权限验证、层级关系管理等功能。
  * 该实现类严格遵循权限控制原则，确保用户只能操作其权限范围内的数据。
- * 
+ *
  * <p>核心特性：
  * <ul>
  *   <li>基于角色的权限控制：5级角色层次管理</li>
@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
  *   <li>完整的业务验证：数据唯一性、角色权限等</li>
  *   <li>事务性操作：确保数据一致性</li>
  * </ul>
- * 
+ *
  * @author User Service Team
  * @version 1.0.0
  * @since 2025-08-07
@@ -44,20 +44,20 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class UserServiceImpl implements UserService {
-    
+
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    
+
     @Autowired
     private UserDataFacade userDataFacade;
-    
-    
+
+
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
-    
+
     @Override
     public CommonResult<UserListResponse> getUsers(int page, int pageSize, String role, String status) {
         log.debug("查询用户列表: page={}, pageSize={}, role={}, status={}", page, pageSize, role, status);
-        
+
         try {
             // 验证当前用户权限
             if (!hasUserManagementPermission()) {
@@ -77,12 +77,12 @@ public class UserServiceImpl implements UserService {
             return CommonResult.error("查询用户列表失败");
         }
     }
-    
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<UserResponse> createUser(CreateUserRequest request) {
         log.info("创建用户: username={}, role={}", request.getUsername(), request.getRole());
-        
+
         try {
             // 验证当前用户权限
             if (!hasUserCreatePermission()) {
@@ -104,19 +104,19 @@ public class UserServiceImpl implements UserService {
             if (userDataFacade.existsByPhone(request.getPhone(), null)) {
                 return CommonResult.error(409, "手机号已存在");
             }
-            
+
             // 创建用户实体
             User user = buildUserFromRequest(request);
-            
+
             // 保存用户
             UserResponse response = userDataFacade.save(user);
-            
+
             // 发布用户创建事件
             publishUserCreatedEvent(response);
-            
+
             log.info("用户创建成功: id={}, username={}", response.getId(), response.getUsername());
             return CommonResult.success(response);
-            
+
         } catch (BusinessException e) {
             log.warn("创建用户业务异常: {}", e.getMessage());
             return CommonResult.error(e.getMessage());
@@ -125,11 +125,11 @@ public class UserServiceImpl implements UserService {
             return CommonResult.error("创建用户失败");
         }
     }
-    
+
     @Override
     public CommonResult<UserResponse> getUserById(Long id) {
         log.debug("获取用户详情: id={}", id);
-        
+
         try {
             // 验证当前用户权限
             if (!hasUserViewPermission()) {
@@ -155,12 +155,12 @@ public class UserServiceImpl implements UserService {
             return CommonResult.error("获取用户详情失败");
         }
     }
-    
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<UserResponse> updateUser(Long id, UpdateUserRequest request) {
         log.info("更新用户: id={}", id);
-        
+
         try {
             // 验证当前用户权限
             if (!hasUserUpdatePermission()) {
@@ -198,16 +198,16 @@ public class UserServiceImpl implements UserService {
             if (request.getRole() != null && !canCreateRole(request.getRole())) {
                 return CommonResult.error(403, "无权限设置该角色");
             }
-            
+
             // 构建更新的用户实体
             User user = buildUserForUpdate(existingUser, request);
-            
+
             // 保存更新
             UserResponse response = userDataFacade.save(user);
-            
+
             // 发布用户更新事件
             publishUserUpdatedEvent(response, existingUser);
-            
+
             log.info("用户更新成功: id={}, username={}", response.getId(), response.getUsername());
             return CommonResult.success(response);
 
@@ -219,12 +219,12 @@ public class UserServiceImpl implements UserService {
             return CommonResult.error("更新用户失败");
         }
     }
-    
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public CommonResult<Void> deleteUser(Long id) {
         log.info("删除用户: id={}", id);
-        
+
         try {
             // 验证当前用户权限
             if (!hasUserDeletePermission()) {
@@ -255,10 +255,10 @@ public class UserServiceImpl implements UserService {
             if (!deleted) {
                 return CommonResult.error(500, "删除用户失败");
             }
-            
+
             // 发布用户删除事件
             publishUserDeletedEvent(user);
-            
+
             log.info("用户删除成功: id={}, username={}", id, user.getUsername());
             return CommonResult.success();
 
@@ -513,15 +513,25 @@ public class UserServiceImpl implements UserService {
      * 检查是否为下级用户
      */
     private boolean isSubordinate(Long userId, Long managerId) {
-        // TODO: 实现层级关系检查逻辑
-        // 这里简化实现，实际应该递归检查上级关系
-        Optional<UserResponse> userOpt = userDataFacade.findById(userId);
-        if (!userOpt.isPresent()) {
-            return false;
+        // 递归检查多级上级关系: 若user的parentId为managerId，或其上级的上级...为managerId，则判定为下级
+        Long current = userId;
+        int maxDepth = 10; // 防御：最多向上回溯10级，避免环
+        for (int i = 0; i < maxDepth; i++) {
+            Optional<UserResponse> userOpt = userDataFacade.findById(current);
+            if (!userOpt.isPresent()) {
+                return false;
+            }
+            UserResponse user = userOpt.get();
+            Long parentId = user.getParentId();
+            if (parentId == null) {
+                return false;
+            }
+            if (managerId.equals(parentId)) {
+                return true;
+            }
+            current = parentId;
         }
-
-        UserResponse user = userOpt.get();
-        return managerId.equals(user.getParentId());
+        return false;
     }
 
     // ==================== 业务逻辑方法 ====================
@@ -641,10 +651,10 @@ public class UserServiceImpl implements UserService {
         stats.setTotalUsers(userDataFacade.countTotal());
         stats.setActiveUsers(userDataFacade.countByStatus("ACTIVE"));
 
-        // TODO: 实现更详细的统计逻辑
-        stats.setTodayNewUsers(0L);
-        stats.setWeekNewUsers(0L);
-        stats.setMonthNewUsers(0L);
+        // 统计：今日/7天/30天新增
+        stats.setTodayNewUsers(calculateNewUsersInDays(0));
+        stats.setWeekNewUsers(calculateNewUsersInDays(7));
+        stats.setMonthNewUsers(calculateNewUsersInDays(30));
 
         // 角色分布
         Map<String, Long> roleDistribution = new HashMap<>();
@@ -662,13 +672,101 @@ public class UserServiceImpl implements UserService {
         statusDistribution.put("SUSPENDED", userDataFacade.countByStatus("SUSPENDED"));
         stats.setStatusDistribution(statusDistribution);
 
-        // 等级分布和趋势数据（简化实现）
+        // 等级分布和趋势
         stats.setLevelDistribution(new HashMap<>());
-        stats.setWeeklyTrend(new HashMap<>());
+
+        // 趋势：最近7天与30天
+        stats.setWeeklyTrend(buildTrendSeries(7));
+        stats.setMonthlyTrend(buildTrendSeries(30));
+        stats.setWeeklyTrendByRole(buildGroupedTrendSeries(7, "role"));
+        stats.setWeeklyTrendByStatus(buildGroupedTrendSeries(7, "status"));
+        stats.setMonthlyTrendByRole(buildGroupedTrendSeries(30, "role"));
+        stats.setMonthlyTrendByStatus(buildGroupedTrendSeries(30, "status"));
 
         stats.setStatisticsTime(LocalDateTime.now().format(DATE_TIME_FORMATTER));
-
         return stats;
+    }
+
+    /**
+     * 计算最近N天新增用户数（N=0 表示今日）
+     */
+    private Long calculateNewUsersInDays(int days) {
+        try {
+            int window = days == 0 ? 1 : days;
+            List<Map<String, Object>> rows = userDataFacade.countDailyNewUsers(window);
+            if (days == 0) {
+                String today = java.time.LocalDate.now().toString();
+                return rows.stream()
+                        .filter(r -> today.equals(String.valueOf(r.get("day"))))
+                        .map(r -> ((Number) r.get("cnt")).longValue())
+                        .findFirst().orElse(0L);
+            } else {
+                return rows.stream()
+                        .map(r -> ((Number) r.get("cnt")).longValue())
+                        .reduce(0L, Long::sum);
+            }
+        } catch (Exception e) {
+            log.warn("统计新增用户失败: days={}", days, e);
+            return 0L;
+        }
+    }
+
+    /**
+     * 构建最近N天每日新增用户趋势序列
+     */
+    private Map<String, Long> buildTrendSeries(int days) {
+        Map<String, Long> result = new LinkedHashMap<>();
+        try {
+            List<Map<String, Object>> rows = userDataFacade.countDailyNewUsers(days);
+            // 先填充完整日期
+            java.time.LocalDate start = java.time.LocalDate.now().minusDays(days - 1);
+            for (int i = 0; i < days; i++) {
+                String day = start.plusDays(i).toString();
+                result.put(day, 0L);
+            }
+            for (Map<String, Object> row : rows) {
+                String day = String.valueOf(row.get("day"));
+                Long cnt = ((Number) row.get("cnt")).longValue();
+                result.put(day, cnt);
+            }
+        } catch (Exception e) {
+            log.warn("构建趋势序列失败: days={}", days, e);
+        }
+        return result;
+    }
+
+    /**
+     * 构建最近N天每日新增用户分组趋势序列
+     * groupKey: "role" 或 "status"
+     */
+    private Map<String, Map<String, Long>> buildGroupedTrendSeries(int days, String groupKey) {
+        Map<String, Map<String, Long>> result = new LinkedHashMap<>();
+        try {
+            List<Map<String, Object>> rows =
+                    "role".equals(groupKey) ? userDataFacade.countDailyNewUsersByRole(days)
+                                             : userDataFacade.countDailyNewUsersByStatus(days);
+            // 先构造完整日期轴
+            java.time.LocalDate start = java.time.LocalDate.now().minusDays(days - 1);
+            List<String> daysAxis = new java.util.ArrayList<>();
+            for (int i = 0; i < days; i++) {
+                daysAxis.add(start.plusDays(i).toString());
+            }
+            // 组装默认Map
+            java.util.function.Supplier<Map<String, Long>> dayMapSupplier = () -> {
+                Map<String, Long> m = new LinkedHashMap<>();
+                for (String d : daysAxis) m.put(d, 0L);
+                return m;
+            };
+            for (Map<String, Object> row : rows) {
+                String day = String.valueOf(row.get("day"));
+                String key = String.valueOf(row.get(groupKey));
+                Long cnt = ((Number) row.get("cnt")).longValue();
+                result.computeIfAbsent(key, k -> dayMapSupplier.get()).put(day, cnt);
+            }
+        } catch (Exception e) {
+            log.warn("构建分组趋势序列失败: days={}, groupKey={}", days, groupKey, e);
+        }
+        return result;
     }
 
     /**
