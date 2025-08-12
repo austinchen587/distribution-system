@@ -35,9 +35,13 @@
         <module>common</module>
         <module>data-access</module>
         <module>auth-service</module>
+        <module>user-service</module>
         <module>lead-service</module>
         <module>promotion-service</module>
         <module>gateway</module>
+        <module>config-service</module>
+        <module>invitation-service</module>
+        <module>reward-service</module>
     </modules>
     
     <dependencyManagement>
@@ -99,6 +103,17 @@
                 <groupId>cn.hutool</groupId>
                 <artifactId>hutool-all</artifactId>
                 <version>${hutool.version}</version>
+            </dependency>
+            
+            <!-- Jackson for JSON Serialization -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+            </dependency>
+            
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
             </dependency>
         </dependencies>
     </dependencyManagement>
