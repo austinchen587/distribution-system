@@ -225,7 +225,7 @@ public class UserDataFacade {
         response.setEmail(user.getEmail());
         response.setPhone(user.getPhone());
         response.setRole(user.getRole());
-        response.setStatus(user.getStatus() != null ? user.getStatus() : null);
+        response.setStatus(user.getStatus());
         response.setCommissionRate(user.getCommissionRate() != null ? user.getCommissionRate().doubleValue() : null);
         response.setParentId(user.getParentId());
         

@@ -416,8 +416,13 @@ public class UserServiceImpl implements UserService {
             return true;
         }
 
-        UserRole role = UserRole.valueOf(currentRole);
-        return role.ordinal() <= UserRole.LEADER.ordinal(); // leader及以上角色
+        try {
+            UserRole role = UserRole.fromCode(currentRole);
+            return role.ordinal() <= UserRole.LEADER.ordinal(); // leader及以上角色
+        } catch (IllegalArgumentException ex) {
+            log.warn("无法解析用户角色: {}，拒绝访问", currentRole);
+            return false;
+        }
     }
 
     /**
@@ -449,9 +454,13 @@ public class UserServiceImpl implements UserService {
         if (currentRole == null) {
             return false;
         }
-
-        UserRole role = UserRole.valueOf(currentRole);
-        return role.ordinal() <= UserRole.DIRECTOR.ordinal(); // director及以上角色
+        try {
+            UserRole role = UserRole.fromCode(currentRole.trim());
+            return role.ordinal() <= UserRole.DIRECTOR.ordinal(); // director及以上角色
+        } catch (IllegalArgumentException ex) {
+            log.warn("无法解析用户角色(删除权限): {}", currentRole);
+            return false;
+        }
     }
 
     /**
@@ -462,12 +471,15 @@ public class UserServiceImpl implements UserService {
         if (currentRole == null) {
             return false;
         }
-
-        UserRole current = UserRole.valueOf(currentRole);
-        UserRole target = UserRole.valueOf(targetRole);
-
-        // 只能创建比自己权限低的角色
-        return current.ordinal() < target.ordinal();
+        try {
+            UserRole current = UserRole.fromCode(currentRole.trim());
+            UserRole target = UserRole.fromCode(targetRole.trim());
+            // 只能创建比自己权限低的角色
+            return current.ordinal() < target.ordinal();
+        } catch (IllegalArgumentException ex) {
+            log.warn("无法解析用户角色(创建目标): current={}, target={}", currentRole, targetRole);
+            return false;
+        }
     }
 
     /**
@@ -481,10 +493,15 @@ public class UserServiceImpl implements UserService {
             return false;
         }
 
-        // 超级管理员和总监可以访问所有用户
-        UserRole role = UserRole.valueOf(currentRole);
-        if (role == UserRole.SUPER_ADMIN || role == UserRole.DIRECTOR) {
-            return true;
+        try {
+            // 超级管理员和总监可以访问所有用户
+            UserRole role = UserRole.fromCode(currentRole.trim());
+            if (role == UserRole.SUPER_ADMIN || role == UserRole.DIRECTOR) {
+                return true;
+            }
+        } catch (IllegalArgumentException ex) {
+            log.warn("无法解析用户角色(访问权限): {}", currentRole);
+            return false;
         }
 
         // 其他角色只能访问自己和下级用户

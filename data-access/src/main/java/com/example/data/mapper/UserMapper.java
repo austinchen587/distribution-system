@@ -41,7 +41,6 @@ public interface UserMapper {
      * @return 用户实体
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据ID查询用户")
-    @Select("SELECT * FROM users WHERE id = #{id}")
     Optional<User> findById(@Param("id") Long id);
     
     /**
@@ -51,7 +50,6 @@ public interface UserMapper {
      * @return 用户实体
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据用户名查询用户")
-    @Select("SELECT * FROM users WHERE username = #{username}")
     Optional<User> findByUsername(@Param("username") String username);
     
     /**
@@ -61,7 +59,6 @@ public interface UserMapper {
      * @return 用户实体
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据邮箱查询用户")
-    @Select("SELECT * FROM users WHERE email = #{email}")
     Optional<User> findByEmail(@Param("email") String email);
     
     /**
@@ -71,7 +68,6 @@ public interface UserMapper {
      * @return 用户实体
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据手机号查询用户")
-    @Select("SELECT * FROM users WHERE phone = #{phone}")
     Optional<User> findByPhone(@Param("phone") String phone);
     
     /**
@@ -81,7 +77,6 @@ public interface UserMapper {
      * @return 用户列表
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据角色查询用户列表")
-    @Select("SELECT * FROM users WHERE role = #{role} ORDER BY created_at DESC")
     List<User> findByRole(@Param("role") String role);
     
     /**
@@ -91,7 +86,6 @@ public interface UserMapper {
      * @return 用户列表
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "根据状态查询用户列表")
-    @Select("SELECT * FROM users WHERE status = #{status} ORDER BY created_at DESC")
     List<User> findByStatus(@Param("status") String status);
     
     /**
@@ -102,7 +96,6 @@ public interface UserMapper {
      * @return 用户列表
      */
     @DataPermission(table = "users", operation = OperationType.READ, description = "分页查询所有用户")
-    @Select("SELECT * FROM users ORDER BY created_at DESC LIMIT #{offset}, #{limit}")
     List<User> findAll(@Param("offset") int offset, @Param("limit") int limit);
     
     /**

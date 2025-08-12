@@ -23,16 +23,76 @@
         id, username, email, phone, password, role, status, commission_rate, parent_id, last_login_at, created_at, updated_at
     </sql>
 
+    <!-- 根据ID查询用户 -->
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM users
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据用户名查询用户 -->
+    <select id="findByUsername" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM users
+        WHERE username = #{username}
+    </select>
+
+    <!-- 根据邮箱查询用户 -->
+    <select id="findByEmail" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <!-- 根据手机号查询用户 -->
+    <select id="findByPhone" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM users
+        WHERE phone = #{phone}
+    </select>
+
+    <!-- 根据角色查询用户列表 -->
+    <select id="findByRole" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM users
+        WHERE role = #{role}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据状态查询用户列表 -->
+    <select id="findByStatus" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM users
+        WHERE status = #{status}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 分页查询所有用户 -->
+    <select id="findAll" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM users
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+
     <!-- 根据关键词搜索用户 -->
     <select id="searchUsers" resultMap="BaseResultMap">
-        SELECT 
+        SELECT
         <include refid="Base_Column_List"/>
         FROM users
         WHERE 1=1
         <if test="keyword != null and keyword != ''">
             AND (
-                username LIKE CONCAT('%', #{keyword}, '%') 
-                OR email LIKE CONCAT('%', #{keyword}, '%') 
+                username LIKE CONCAT('%', #{keyword}, '%')
+                OR email LIKE CONCAT('%', #{keyword}, '%')
                 OR phone LIKE CONCAT('%', #{keyword}, '%')
             )
         </if>
@@ -42,7 +102,7 @@
 
     <!-- 根据条件查找用户列表 -->
     <select id="findByConditions" resultMap="BaseResultMap">
-        SELECT 
+        SELECT
         <include refid="Base_Column_List"/>
         FROM users
         WHERE 1=1

@@ -6,6 +6,7 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.mybatis.spring.annotation.MapperScan;
+import org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration;
 
 /**
  * 用户管理服务启动类
@@ -35,7 +36,7 @@ import org.mybatis.spring.annotation.MapperScan;
  * @version 1.0.0
  * @since 2025-08-07
  */
-@SpringBootApplication
+@SpringBootApplication(exclude = { MybatisAutoConfiguration.class })
 @EnableDiscoveryClient
 @ComponentScan(
     basePackages = {

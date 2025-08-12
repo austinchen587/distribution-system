@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
 <configuration>
-    
+
     <settings>
         <!-- 开启驼峰命名自动映射 -->
         <setting name="mapUnderscoreToCamelCase" value="true"/>
@@ -20,22 +20,24 @@
         <!-- 结果集大小限制 -->
         <setting name="defaultFetchSize" value="100"/>
     </settings>
-    
+
     <typeAliases>
         <!-- 实体类别名包扫描 -->
         <package name="com.example.data.entity"/>
     </typeAliases>
-    
+
     <typeHandlers>
-        <!-- 枚举类型处理器 -->
-        <typeHandler handler="org.apache.ibatis.type.EnumTypeHandler" 
-                     javaType="com.example.data.entity.User$UserStatus"/>
-        <typeHandler handler="org.apache.ibatis.type.EnumTypeHandler" 
-                     javaType="com.example.data.entity.CustomerLead$LeadStatus"/>
-        <typeHandler handler="org.apache.ibatis.type.EnumTypeHandler" 
-                     javaType="com.example.data.entity.CustomerLead$AuditStatus"/>
+        <!-- 使用字符串映射，避免错误的枚举解析 -->
+        <!-- 移除对 CustomerLead.AuditStatus 的全局枚举handler 以防串用 -->
     </typeHandlers>
-    
+
+
+    <mappers>
+        <!-- 仅注册所需Mapper，显式排除 PromotionMapper -->
+        <mapper resource="mapper/UserMapper.xml"/>
+        <mapper resource="mapper/CustomerLeadMapper.xml"/>
+    </mappers>
+
     <!-- Mappers will be auto-scanned by @MapperScan annotation -->
-    
+
 </configuration>

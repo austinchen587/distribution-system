@@ -24,11 +24,20 @@ public enum UserRole {
     }
     
     public static UserRole fromCode(String code) {
+        if (code == null) {
+            throw new IllegalArgumentException("角色代码为空");
+        }
+        String n = code.trim();
+        if (n.isEmpty()) {
+            throw new IllegalArgumentException("角色代码为空");
+        }
+        String normalized = n.toLowerCase().replace('-', '_');
         for (UserRole role : UserRole.values()) {
-            if (role.getCode().equals(code)) {
+            if (role.getCode().equals(normalized)) {
                 return role;
             }
         }
-        throw new IllegalArgumentException("未知角色代码: " + code);
+        // Fallback: allow enum name inputs like SUPER_ADMIN
+        return UserRole.valueOf(normalized.toUpperCase());
     }
 }
