@@ -30,7 +30,9 @@ public class LeadServiceImpl implements LeadService {
     
     @Autowired
     private LeadDataFacade leadDataFacade;
-    
+    @Autowired(required = false)
+    private org.springframework.data.redis.core.RedisTemplate<String, Object> redis;
+
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     
     @Override
@@ -44,6 +46,11 @@ public class LeadServiceImpl implements LeadService {
             
             // 创建客资
             CustomerLeadDto dto = leadDataFacade.create(request);
+            // 写入成功后，删除该手机号的查重缓存并递增列表缓存版本号
+            if (redis != null) {
+                try { redis.delete("lead:exists:phone:" + request.getPhone()); } catch (Exception ignore) {}
+                try { redis.opsForValue().increment("lead:list:ver"); } catch (Exception ignore) {}
+            }
             return CommonResult.success(dto);
         } catch (Exception e) {
             return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getCode(), "系统错误: " + e.getMessage());
@@ -88,6 +95,7 @@ public class LeadServiceImpl implements LeadService {
         try {
             boolean ok = leadDataFacade.updateStatus(id, status);
             if (ok) {
+                if (redis != null) try { redis.opsForValue().increment("lead:list:ver"); } catch (Exception ignore) {}
                 return CommonResult.success(null);
             } else {
                 return CommonResult.error(ErrorCode.OPERATION_FAILED.getHttpCode(), "更新客资状态失败");
@@ -102,6 +110,7 @@ public class LeadServiceImpl implements LeadService {
         try {
             boolean ok = leadDataFacade.batchUpdateAuditStatus(ids, auditStatus);
             if (ok) {
+                if (redis != null) try { redis.opsForValue().increment("lead:list:ver"); } catch (Exception ignore) {}
                 return CommonResult.success(null);
             } else {
                 return CommonResult.error(ErrorCode.OPERATION_FAILED.getHttpCode(), "批量审核失败");
@@ -115,7 +124,10 @@ public class LeadServiceImpl implements LeadService {
     public CommonResult<Void> updateLead(Long id, com.example.lead.dto.UpdateLeadRequest request) {
         try {
             boolean ok = leadDataFacade.updateLead(id, request);
-            if (ok) return CommonResult.success(null);
+            if (ok) {
+                if (redis != null) try { redis.opsForValue().increment("lead:list:ver"); } catch (Exception ignore) {}
+                return CommonResult.success(null);
+            }
             return CommonResult.error(ErrorCode.LEAD_001.getHttpCode(), "客资不存在");
         } catch (Exception e) {
             return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getHttpCode(), "系统错误: " + e.getMessage());
@@ -126,57 +138,15 @@ public class LeadServiceImpl implements LeadService {
     public CommonResult<Void> deleteLead(Long id) {
         try {
             boolean ok = leadDataFacade.deleteLead(id);
-            if (ok) return CommonResult.success(null);
+            if (ok) {
+                if (redis != null) try { redis.opsForValue().increment("lead:list:ver"); } catch (Exception ignore) {}
+                return CommonResult.success(null);
+            }
             return CommonResult.error(ErrorCode.LEAD_001.getHttpCode(), "客资不存在");
         } catch (Exception e) {
             return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getHttpCode(), "系统错误: " + e.getMessage());
         }
     }
     
-    /**
-     * 转换为DTO
-     */
-    @Deprecated
-    private CustomerLeadDto convertToDto(com.example.lead.entity.CustomerLead entity) {
-        CustomerLeadDto dto = new CustomerLeadDto();
-        BeanUtils.copyProperties(entity, dto);
-        
-        if (entity.getCreatedAt() != null) {
-            dto.setCreatedAt(dateFormat.format(entity.getCreatedAt()));
-        }
-        if (entity.getLastFollowUpAt() != null) {
-            dto.setLastFollowUpAt(dateFormat.format(entity.getLastFollowUpAt()));
-        }
-        
-        return dto;
-    }
-    
-    /**
-     * 转换为详情DTO
-     */
-    @Deprecated
-    private LeadDetailsDto convertToDetailsDto(com.example.lead.entity.CustomerLead entity) {
-        LeadDetailsDto dto = new LeadDetailsDto();
-        
-        // 创建基础信息DTO
-        CustomerLeadDto leadInfo = convertToDto(entity);
-        dto.setLeadInfo(leadInfo);
-        
-        // 设置详情字段 (使用默认值，因为CustomerLead实体中没有这些字段)
-        dto.setWechatId(null); // TODO: 从请求参数中获取
-        dto.setSourceDetail(null); // TODO: 从请求参数中获取  
-        dto.setNotes(null); // TODO: 从请求参数中获取
-        dto.setReferralCode(null); // TODO: 从请求参数中获取
-        dto.setAuditComment(null); // TODO: 待实现审核功能
-        dto.setRejectReason(null); // TODO: 待实现审核功能
-        dto.setAuditorName(null); // TODO: 待实现审核功能
-        
-        // 审核时间暂时为空，待实现审核功能
-        dto.setAuditedAt(null);
-        if (entity.getUpdatedAt() != null) {
-            dto.setUpdatedAt(dateFormat.format(entity.getUpdatedAt()));
-        }
-        
-        return dto;
-    }
+
 }
