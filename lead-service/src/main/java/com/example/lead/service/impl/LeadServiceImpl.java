@@ -3,8 +3,7 @@ package com.example.lead.service.impl;
 import com.example.lead.dto.CreateLeadRequest;
 import com.example.lead.dto.CustomerLeadDto;
 import com.example.lead.dto.LeadDetailsDto;
-import com.example.lead.entity.CustomerLead;
-import com.example.lead.mapper.CustomerLeadMapper;
+import com.example.lead.facade.LeadDataFacade;
 import com.example.lead.service.LeadService;
 import com.example.common.dto.CommonResult;
 import com.example.common.constants.ErrorCode;
@@ -16,7 +15,6 @@ import org.springframework.util.StringUtils;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -31,7 +29,7 @@ import java.util.List;
 public class LeadServiceImpl implements LeadService {
     
     @Autowired
-    private CustomerLeadMapper customerLeadMapper;
+    private LeadDataFacade leadDataFacade;
     
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     
@@ -39,31 +37,14 @@ public class LeadServiceImpl implements LeadService {
     public CommonResult<CustomerLeadDto> createLead(CreateLeadRequest request) {
         try {
             // 检查重复
-            CustomerLead existing = customerLeadMapper.selectByPhone(request.getPhone());
-            if (existing != null) {
+            boolean exists = leadDataFacade.existsByPhone(request.getPhone(), null);
+            if (exists) {
                 return CommonResult.error(ErrorCode.CONFLICT.getCode(), "客资已存在");
             }
             
             // 创建客资
-            CustomerLead customerLead = new CustomerLead();
-            customerLead.setName(request.getName());
-            customerLead.setPhone(request.getPhone());
-            customerLead.setSource(request.getSource());
-            customerLead.setSalespersonId(request.getSalespersonId());
-            // TODO: 从用户服务获取销售员姓名
-            customerLead.setSalespersonName("销售员" + request.getSalespersonId());
-            customerLead.setStatus("PENDING");
-            customerLead.setAuditStatus("PENDING_AUDIT");
-            customerLead.setCreatedAt(new Date());
-            customerLead.setUpdatedAt(new Date());
-            
-            int result = customerLeadMapper.insert(customerLead);
-            if (result > 0) {
-                CustomerLeadDto dto = convertToDto(customerLead);
-                return CommonResult.success(dto);
-            } else {
-                return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getCode(), "创建客资失败");
-            }
+            CustomerLeadDto dto = leadDataFacade.create(request);
+            return CommonResult.success(dto);
         } catch (Exception e) {
             return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getCode(), "系统错误: " + e.getMessage());
         }
@@ -72,31 +53,22 @@ public class LeadServiceImpl implements LeadService {
     @Override
     public CommonResult<LeadDetailsDto> getLeadById(Long id) {
         try {
-            CustomerLead customerLead = customerLeadMapper.selectById(id);
-            if (customerLead == null) {
-                return CommonResult.error(ErrorCode.LEAD_001.getHttpCode(), "客资不存在");
-            }
-            
-            LeadDetailsDto dto = convertToDetailsDto(customerLead);
-            return CommonResult.success(dto);
+            return leadDataFacade.findDetailsById(id)
+                    .map(CommonResult::success)
+                    .orElseGet(() -> CommonResult.error(ErrorCode.LEAD_001.getHttpCode(), "客资不存在"));
         } catch (Exception e) {
             return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getHttpCode(), "系统错误: " + e.getMessage());
         }
     }
     
     @Override
-    public CommonResult<List<CustomerLeadDto>> getLeadList(int page, int size, Long salespersonId, String status) {
+    public CommonResult<com.example.lead.dto.PageResult<CustomerLeadDto>> getLeadList(int page, int size, Long salespersonId,
+            String status, String auditStatus, String keyword, String source,
+            String startDate, String endDate, String sortBy, String sortOrder) {
         try {
-            int offset = (page - 1) * size;
-            List<CustomerLead> leads = customerLeadMapper.selectLeads(offset, size, salespersonId, status);
-            int total = customerLeadMapper.countLeads(salespersonId, status);
-            
-            List<CustomerLeadDto> dtoList = new ArrayList<>();
-            for (CustomerLead lead : leads) {
-                dtoList.add(convertToDto(lead));
-            }
-            
-            return CommonResult.success(dtoList);
+            com.example.lead.dto.PageResult<CustomerLeadDto> pageResult = leadDataFacade.findPageWithCount(page, size, salespersonId,
+                    status, auditStatus, keyword, source, startDate, endDate, sortBy, sortOrder);
+            return CommonResult.success(pageResult);
         } catch (Exception e) {
             return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getHttpCode(), "系统错误: " + e.getMessage());
         }
@@ -105,8 +77,7 @@ public class LeadServiceImpl implements LeadService {
     @Override
     public CommonResult<Boolean> checkDuplicate(String phone) {
         try {
-            CustomerLead existing = customerLeadMapper.selectByPhone(phone);
-            return CommonResult.success(existing != null);
+            return CommonResult.success(leadDataFacade.existsByPhone(phone, null));
         } catch (Exception e) {
             return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getHttpCode(), "系统错误: " + e.getMessage());
         }
@@ -115,16 +86,8 @@ public class LeadServiceImpl implements LeadService {
     @Override
     public CommonResult<Void> updateLeadStatus(Long id, String status) {
         try {
-            CustomerLead customerLead = customerLeadMapper.selectById(id);
-            if (customerLead == null) {
-                return CommonResult.error(ErrorCode.LEAD_001.getHttpCode(), "客资不存在");
-            }
-            
-            customerLead.setStatus(status);
-            customerLead.setUpdatedAt(new Date());
-            
-            int result = customerLeadMapper.update(customerLead);
-            if (result > 0) {
+            boolean ok = leadDataFacade.updateStatus(id, status);
+            if (ok) {
                 return CommonResult.success(null);
             } else {
                 return CommonResult.error(ErrorCode.OPERATION_FAILED.getHttpCode(), "更新客资状态失败");
@@ -137,8 +100,8 @@ public class LeadServiceImpl implements LeadService {
     @Override
     public CommonResult<Void> batchAuditLeads(List<Long> ids, String auditStatus) {
         try {
-            int result = customerLeadMapper.batchUpdateAuditStatus(ids, auditStatus);
-            if (result > 0) {
+            boolean ok = leadDataFacade.batchUpdateAuditStatus(ids, auditStatus);
+            if (ok) {
                 return CommonResult.success(null);
             } else {
                 return CommonResult.error(ErrorCode.OPERATION_FAILED.getHttpCode(), "批量审核失败");
@@ -147,11 +110,34 @@ public class LeadServiceImpl implements LeadService {
             return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getHttpCode(), "系统错误: " + e.getMessage());
         }
     }
+
+    @Override
+    public CommonResult<Void> updateLead(Long id, com.example.lead.dto.UpdateLeadRequest request) {
+        try {
+            boolean ok = leadDataFacade.updateLead(id, request);
+            if (ok) return CommonResult.success(null);
+            return CommonResult.error(ErrorCode.LEAD_001.getHttpCode(), "客资不存在");
+        } catch (Exception e) {
+            return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getHttpCode(), "系统错误: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public CommonResult<Void> deleteLead(Long id) {
+        try {
+            boolean ok = leadDataFacade.deleteLead(id);
+            if (ok) return CommonResult.success(null);
+            return CommonResult.error(ErrorCode.LEAD_001.getHttpCode(), "客资不存在");
+        } catch (Exception e) {
+            return CommonResult.error(ErrorCode.INTERNAL_SERVER_ERROR.getHttpCode(), "系统错误: " + e.getMessage());
+        }
+    }
     
     /**
      * 转换为DTO
      */
-    private CustomerLeadDto convertToDto(CustomerLead entity) {
+    @Deprecated
+    private CustomerLeadDto convertToDto(com.example.lead.entity.CustomerLead entity) {
         CustomerLeadDto dto = new CustomerLeadDto();
         BeanUtils.copyProperties(entity, dto);
         
@@ -168,7 +154,8 @@ public class LeadServiceImpl implements LeadService {
     /**
      * 转换为详情DTO
      */
-    private LeadDetailsDto convertToDetailsDto(CustomerLead entity) {
+    @Deprecated
+    private LeadDetailsDto convertToDetailsDto(com.example.lead.entity.CustomerLead entity) {
         LeadDetailsDto dto = new LeadDetailsDto();
         
         // 创建基础信息DTO

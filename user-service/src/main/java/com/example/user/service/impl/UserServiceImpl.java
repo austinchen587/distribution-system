@@ -10,6 +10,7 @@ import com.example.user.dto.request.*;
 import com.example.user.dto.response.*;
 import com.example.user.facade.UserDataFacade;
 import com.example.user.service.UserService;
+import com.example.user.event.publisher.UserEventPublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -50,6 +51,8 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserDataFacade userDataFacade;
 
+    @Autowired
+    private UserEventPublisher userEventPublisher;
 
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
@@ -829,12 +832,21 @@ public class UserServiceImpl implements UserService {
      */
     private void publishUserCreatedEvent(UserResponse user) {
         try {
-            String correlationId = UUID.randomUUID().toString();
-            // TODO: 使用UserEventPublisher发布事件
-            // userEventPublisher.publishUserCreated(user.getId(), user.getUsername(),
-            //     user.getPhone(), user.getRole(), correlationId);
+            // 构建User实体用于事件发布
+            User userEntity = new User();
+            userEntity.setId(user.getId());
+            userEntity.setUsername(user.getUsername());
+            userEntity.setPhone(user.getPhone());
+            userEntity.setRole(user.getRole());
 
-            log.info("用户创建事件发布成功: userId={}, correlationId={}", user.getId(), correlationId);
+            // 发布用户创建事件
+            CommonResult<Void> result = userEventPublisher.publishUserCreated(userEntity);
+            
+            if (result.isSuccess()) {
+                log.info("用户创建事件发布成功: userId={}", user.getId());
+            } else {
+                log.error("用户创建事件发布失败: userId={}, error={}", user.getId(), result.getMessage());
+            }
         } catch (Exception e) {
             log.error("发布用户创建事件失败: userId={}", user.getId(), e);
         }
@@ -845,12 +857,50 @@ public class UserServiceImpl implements UserService {
      */
     private void publishUserUpdatedEvent(UserResponse newUser, UserResponse oldUser) {
         try {
-            String correlationId = UUID.randomUUID().toString();
-            // TODO: 使用UserEventPublisher发布事件
-            // userEventPublisher.publishUserUpdated(newUser.getId(), newUser.getUsername(),
-            //     newUser.getRole(), correlationId);
+            // 构建User实体用于事件发布
+            User userEntity = new User();
+            userEntity.setId(newUser.getId());
+            userEntity.setUsername(newUser.getUsername());
+            userEntity.setPhone(newUser.getPhone());
+            userEntity.setRole(newUser.getRole());
 
-            log.info("用户更新事件发布成功: userId={}, correlationId={}", newUser.getId(), correlationId);
+            // 识别变更字段
+            List<String> updatedFields = new ArrayList<>();
+            if (!Objects.equals(newUser.getUsername(), oldUser.getUsername())) {
+                updatedFields.add("username");
+            }
+            if (!Objects.equals(newUser.getPhone(), oldUser.getPhone())) {
+                updatedFields.add("phone");
+            }
+            if (!Objects.equals(newUser.getRole(), oldUser.getRole())) {
+                updatedFields.add("role");
+            }
+            if (!Objects.equals(newUser.getStatus(), oldUser.getStatus())) {
+                updatedFields.add("status");
+            }
+
+            // 发布用户更新事件
+            CommonResult<Void> result = userEventPublisher.publishUserUpdated(
+                userEntity, updatedFields.toArray(new String[0]));
+            
+            if (result.isSuccess()) {
+                log.info("用户更新事件发布成功: userId={}, updatedFields={}", 
+                    newUser.getId(), String.join(",", updatedFields));
+            } else {
+                log.error("用户更新事件发布失败: userId={}, error={}", 
+                    newUser.getId(), result.getMessage());
+            }
+
+            // 特殊处理：角色变更事件
+            if (updatedFields.contains("role")) {
+                publishUserRoleChangedEvent(newUser, oldUser.getRole(), newUser.getRole());
+            }
+
+            // 特殊处理：状态变更事件
+            if (updatedFields.contains("status")) {
+                publishUserStatusChangedEvent(newUser.getId(), oldUser.getStatus(), newUser.getStatus());
+            }
+
         } catch (Exception e) {
             log.error("发布用户更新事件失败: userId={}", newUser.getId(), e);
         }
@@ -861,11 +911,16 @@ public class UserServiceImpl implements UserService {
      */
     private void publishUserDeletedEvent(UserResponse user) {
         try {
-            String correlationId = UUID.randomUUID().toString();
-            // TODO: 使用UserEventPublisher发布事件
-            // userEventPublisher.publishUserDeleted(user.getId(), user.getUsername(), correlationId);
-
-            log.info("用户删除事件发布成功: userId={}, correlationId={}", user.getId(), correlationId);
+            // 发布用户删除事件
+            CommonResult<Void> result = userEventPublisher.publishUserDeleted(
+                user.getId(), user.getUsername());
+            
+            if (result.isSuccess()) {
+                log.info("用户删除事件发布成功: userId={}", user.getId());
+            } else {
+                log.error("用户删除事件发布失败: userId={}, error={}", 
+                    user.getId(), result.getMessage());
+            }
         } catch (Exception e) {
             log.error("发布用户删除事件失败: userId={}", user.getId(), e);
         }
@@ -876,14 +931,60 @@ public class UserServiceImpl implements UserService {
      */
     private void publishUserStatusChangedEvent(Long userId, String oldStatus, String newStatus) {
         try {
-            String correlationId = UUID.randomUUID().toString();
-            // TODO: 使用UserEventPublisher发布事件
-            // userEventPublisher.publishUserStatusChanged(userId, oldStatus, newStatus, correlationId);
+            // 获取用户实体信息
+            Optional<UserResponse> userOpt = userDataFacade.findById(userId);
+            if (userOpt.isPresent()) {
+                UserResponse userResponse = userOpt.get();
+                User userEntity = new User();
+                userEntity.setId(userResponse.getId());
+                userEntity.setUsername(userResponse.getUsername());
+                userEntity.setPhone(userResponse.getPhone());
+                userEntity.setRole(userResponse.getRole());
 
-            log.info("用户状态变更事件发布成功: userId={}, oldStatus={}, newStatus={}, correlationId={}",
-                userId, oldStatus, newStatus, correlationId);
+                // 发布用户状态变更事件
+                CommonResult<Void> result = userEventPublisher.publishUserStatusChanged(
+                    userEntity, oldStatus, newStatus);
+                
+                if (result.isSuccess()) {
+                    log.info("用户状态变更事件发布成功: userId={}, oldStatus={}, newStatus={}",
+                        userId, oldStatus, newStatus);
+                } else {
+                    log.error("用户状态变更事件发布失败: userId={}, error={}", 
+                        userId, result.getMessage());
+                }
+            } else {
+                log.warn("用户不存在，无法发布状态变更事件: userId={}", userId);
+            }
         } catch (Exception e) {
             log.error("发布用户状态变更事件失败: userId={}", userId, e);
+        }
+    }
+
+    /**
+     * 发布用户角色变更事件
+     */
+    private void publishUserRoleChangedEvent(UserResponse user, String oldRole, String newRole) {
+        try {
+            // 构建User实体用于事件发布
+            User userEntity = new User();
+            userEntity.setId(user.getId());
+            userEntity.setUsername(user.getUsername());
+            userEntity.setPhone(user.getPhone());
+            userEntity.setRole(user.getRole());
+
+            // 发布用户角色变更事件
+            CommonResult<Void> result = userEventPublisher.publishUserRoleChanged(
+                userEntity, oldRole, newRole);
+            
+            if (result.isSuccess()) {
+                log.info("用户角色变更事件发布成功: userId={}, oldRole={}, newRole={}",
+                    user.getId(), oldRole, newRole);
+            } else {
+                log.error("用户角色变更事件发布失败: userId={}, error={}", 
+                    user.getId(), result.getMessage());
+            }
+        } catch (Exception e) {
+            log.error("发布用户角色变更事件失败: userId={}", user.getId(), e);
         }
     }
 }

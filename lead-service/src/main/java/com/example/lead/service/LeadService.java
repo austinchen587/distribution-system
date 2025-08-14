@@ -41,7 +41,9 @@ public interface LeadService {
      * @param status 状态 (可选)
      * @return 客资列表
      */
-    CommonResult<List<CustomerLeadDto>> getLeadList(int page, int size, Long salespersonId, String status);
+    CommonResult<com.example.lead.dto.PageResult<CustomerLeadDto>> getLeadList(int page, int size, Long salespersonId,
+            String status, String auditStatus, String keyword, String source,
+            String startDate, String endDate, String sortBy, String sortOrder);
     
     /**
      * 检查客资重复
@@ -68,4 +70,14 @@ public interface LeadService {
      * @return 审核结果
      */
     CommonResult<Void> batchAuditLeads(List<Long> ids, String auditStatus);
+
+    /**
+     * 更新客资信息（部分字段）
+     */
+    CommonResult<Void> updateLead(Long id, com.example.lead.dto.UpdateLeadRequest request);
+
+    /**
+     * 删除客资
+     */
+    CommonResult<Void> deleteLead(Long id);
 }

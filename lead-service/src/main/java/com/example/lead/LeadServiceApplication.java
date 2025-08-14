@@ -14,7 +14,7 @@ import org.mybatis.spring.annotation.MapperScan;
  */
 @SpringBootApplication(scanBasePackages = {"com.example.lead", "com.example.common"})
 @EnableDiscoveryClient
-@MapperScan("com.example.lead.mapper")
+@MapperScan({"com.example.data.mapper", "com.example.common.mapper"})
 public class LeadServiceApplication {
     
     public static void main(String[] args) {

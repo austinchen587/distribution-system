@@ -8,7 +8,7 @@ services:
     container_name: mysql
     environment:
       MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: distribution
+      MYSQL_DATABASE: distribution_system
       MYSQL_CHARSET: utf8mb4
     ports:
       - "3306:3306"

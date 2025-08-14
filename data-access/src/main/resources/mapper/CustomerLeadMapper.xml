@@ -5,35 +5,41 @@
     <!-- 基础ResultMap -->
     <resultMap id="BaseResultMap" type="com.example.data.entity.CustomerLead">
         <id column="id" property="id" jdbcType="BIGINT"/>
-        <result column="agent_id" property="agentId" jdbcType="BIGINT"/>
-        <result column="customer_name" property="customerName" jdbcType="VARCHAR"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
         <result column="phone" property="phone" jdbcType="VARCHAR"/>
-        <result column="description" property="description" jdbcType="VARCHAR"/>
-        <result column="lead_status" property="leadStatus" jdbcType="VARCHAR" 
+        <result column="wechat_id" property="wechatId" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR"
                 typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
-        <result column="follow_up_date" property="followUpDate" jdbcType="TIMESTAMP"/>
-        <result column="audit_status" property="auditStatus" jdbcType="VARCHAR" 
+        <result column="audit_status" property="auditStatus" jdbcType="VARCHAR"
                 typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result column="source" property="source" jdbcType="VARCHAR"/>
+        <result column="source_detail" property="sourceDetail" jdbcType="VARCHAR"/>
+        <result column="salesperson_id" property="salespersonId" jdbcType="BIGINT"/>
+        <result column="notes" property="notes" jdbcType="VARCHAR"/>
+        <result column="last_follow_up_at" property="lastFollowUpAt" jdbcType="TIMESTAMP"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
     </resultMap>
 
     <!-- 基础字段列表 -->
     <sql id="Base_Column_List">
-        id, agent_id, customer_name, phone, description, lead_status, follow_up_date, audit_status, created_at, updated_at
+        id, name, phone, wechat_id, status, audit_status, source, source_detail, salesperson_id, notes, last_follow_up_at, created_at, updated_at
     </sql>
 
     <!-- 根据关键词搜索客户资源 -->
     <select id="searchCustomerLeads" resultMap="BaseResultMap">
-        SELECT 
+        SELECT
         <include refid="Base_Column_List"/>
         FROM customer_leads
         WHERE 1=1
         <if test="keyword != null and keyword != ''">
             AND (
-                customer_name LIKE CONCAT('%', #{keyword}, '%') 
-                OR phone LIKE CONCAT('%', #{keyword}, '%') 
-                OR description LIKE CONCAT('%', #{keyword}, '%')
+                name LIKE CONCAT('%', #{keyword}, '%')
+                OR phone LIKE CONCAT('%', #{keyword}, '%')
+                OR wechat_id LIKE CONCAT('%', #{keyword}, '%')
+                OR source LIKE CONCAT('%', #{keyword}, '%')
+                OR source_detail LIKE CONCAT('%', #{keyword}, '%')
+                OR notes LIKE CONCAT('%', #{keyword}, '%')
             )
         </if>
         ORDER BY created_at DESC
@@ -42,20 +48,72 @@
 
     <!-- 根据条件查找客户资源列表 -->
     <select id="findByConditions" resultMap="BaseResultMap">
-        SELECT 
+        SELECT
         <include refid="Base_Column_List"/>
         FROM customer_leads
         WHERE 1=1
-        <if test="agentId != null">
-            AND agent_id = #{agentId}
+        <if test="salespersonId != null">
+            AND salesperson_id = #{salespersonId}
         </if>
-        <if test="leadStatus != null and leadStatus != ''">
-            AND lead_status = #{leadStatus}
+        <if test="status != null and status != ''">
+            AND status = #{status}
         </if>
         <if test="auditStatus != null and auditStatus != ''">
             AND audit_status = #{auditStatus}
         </if>
-        ORDER BY created_at DESC
+        <if test="keyword != null and keyword != ''">
+            AND (
+              name LIKE CONCAT('%', #{keyword}, '%')
+              OR phone LIKE CONCAT('%', #{keyword}, '%')
+              OR wechat_id LIKE CONCAT('%', #{keyword}, '%')
+              OR source LIKE CONCAT('%', #{keyword}, '%')
+              OR source_detail LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="source != null and source != ''">
+            AND source = #{source}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND created_at &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND created_at &lt;= #{endDate}
+        </if>
+        ORDER BY
+        <choose>
+            <when test="sortBy == 'createdAt'">
+                created_at
+            </when>
+            <when test="sortBy == 'updatedAt'">
+                updated_at
+            </when>
+            <when test="sortBy == 'name'">
+                name
+            </when>
+            <when test="sortBy == 'status'">
+                status
+            </when>
+            <when test="sortBy == 'auditStatus'">
+                audit_status
+            </when>
+            <when test="sortBy == 'lastFollowUpAt'">
+                last_follow_up_at
+            </when>
+            <when test="sortBy == 'source'">
+                source
+            </when>
+            <otherwise>
+                created_at
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="sortOrder != null and (sortOrder == 'asc' or sortOrder == 'ASC')">
+                ASC
+            </when>
+            <otherwise>
+                DESC
+            </otherwise>
+        </choose>
         LIMIT #{offset}, #{limit}
     </select>
 
@@ -64,25 +122,53 @@
         SELECT COUNT(*)
         FROM customer_leads
         WHERE 1=1
-        <if test="agentId != null">
-            AND agent_id = #{agentId}
+        <if test="salespersonId != null">
+            AND salesperson_id = #{salespersonId}
         </if>
-        <if test="leadStatus != null and leadStatus != ''">
-            AND lead_status = #{leadStatus}
+        <if test="status != null and status != ''">
+            AND status = #{status}
         </if>
         <if test="auditStatus != null and auditStatus != ''">
             AND audit_status = #{auditStatus}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+              name LIKE CONCAT('%', #{keyword}, '%')
+              OR phone LIKE CONCAT('%', #{keyword}, '%')
+              OR wechat_id LIKE CONCAT('%', #{keyword}, '%')
+              OR source LIKE CONCAT('%', #{keyword}, '%')
+              OR source_detail LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="source != null and source != ''">
+            AND source = #{source}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND created_at &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND created_at &lt;= #{endDate}
         </if>
     </select>
 
     <!-- 批量更新跟进状态 -->
     <update id="batchUpdateLeadStatus">
-        UPDATE customer_leads 
-        SET lead_status = #{leadStatus.code}, updated_at = #{updatedAt}
+        UPDATE customer_leads
+        SET status = #{leadStatus.code}, updated_at = #{updatedAt}
         WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
     </update>
+    <!-- 批量更新审核状态 -->
+    <update id="batchUpdateAuditStatus">
+        UPDATE customer_leads
+        SET audit_status = #{auditStatus.code}, updated_at = #{updatedAt}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
 
 </mapper>

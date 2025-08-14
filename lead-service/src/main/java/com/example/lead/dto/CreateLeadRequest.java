@@ -37,14 +37,14 @@ public class CreateLeadRequest implements Serializable {
     /**
      * 客户微信号
      */
-    @Schema(description = "客户微信号", example = "wechat_lisi")
+    @Schema(description = "客户微信号", example = "wechat_alice")
     @Size(max = 64, message = "微信号长度不能超过64字符")
     private String wechatId;
     
     /**
      * 来源渠道
      */
-    @Schema(description = "来源渠道", example = "微信群", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "来源渠道", example = "ONLINE_AD", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "来源渠道不能为空")
     @Size(max = 100, message = "来源渠道长度不能超过100字符")
     private String source;
@@ -52,21 +52,21 @@ public class CreateLeadRequest implements Serializable {
     /**
      * 来源详情
      */
-    @Schema(description = "来源详情", example = "XX理财群推荐")
+    @Schema(description = "来源详情", example = "Douyin")
     @Size(max = 255, message = "来源详情长度不能超过255字符")
     private String sourceDetail;
     
     /**
      * 归属销售ID
      */
-    @Schema(description = "归属销售ID", example = "10", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "归属销售ID", example = "5", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "归属销售不能为空")
     private Long salespersonId;
     
     /**
      * 跟进备注
      */
-    @Schema(description = "跟进备注", example = "客户对理财产品比较感兴趣")
+    @Schema(description = "跟进备注", example = "首咨，预约周五回访")
     private String notes;
     
     /**
