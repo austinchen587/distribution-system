@@ -158,3 +158,30 @@ resource/
 .promptx/resource/project.registry.json
 
 docs/
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Java/Maven
+**/target/
+*.iml
+*.log
+
+# Node
+node_modules/
+
+# 运行期数据 & 大文件
+data/
+server-deploy/**/logs/
+*.jar
+*.war
+*.zip
+*.tar
+*.tar.gz
+
+# Docker
+**/.env
