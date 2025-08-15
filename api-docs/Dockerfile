@@ -1,8 +1,6 @@
-# 使用一个基础的Web服务器镜像
-FROM nginx:alpine
-
-# 复制Swagger UI文件到Nginx的HTML目录
+# syntax=docker/dockerfile:1.6
+FROM nginx:1.25-alpine
 COPY config/swagger-config.yaml /usr/share/nginx/html/swagger.yaml
-
-# 暴露80端口
+# 如有静态站点，解开下一行：
+# COPY dist/ /usr/share/nginx/html/
 EXPOSE 80

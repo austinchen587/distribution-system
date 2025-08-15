@@ -1,72 +1,107 @@
-version: "3.9"
-
 services:
-
-  ## 🛢️ 数据库服务
+  # 🛢️ MySQL（arm64）
   mysql:
     image: mysql:8.0
+    platform: "linux/arm64/v8"
     container_name: mysql
     environment:
       MYSQL_ROOT_PASSWORD: Admin123.
       MYSQL_DATABASE: distribution_system
       MYSQL_CHARSET: utf8mb4
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
     ports:
       - "3306:3306"
     volumes:
       - ./data/mysql:/var/lib/mysql
+      # 第一次启动自动创建 Nacos 库（幂等）
+      - ./server-deploy/mysql-init/00-create-nacos-db.sql:/docker-entrypoint-initdb.d/00-create-nacos-db.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pAdmin123."]
+      interval: 10s
+      timeout: 5s
+      retries: 30
     restart: always
 
-  ## ⚡ Redis 缓存服务
+  # ⚡ Redis（arm64 友好标签）
   redis:
-    image: redis:7
+    image: redis:7.2-alpine
+    platform: "linux/arm64/v8"
     container_name: redis
     ports:
       - "6379:6379"
     volumes:
       - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 15
     restart: always
 
-  ## 📚 Nacos 注册中心
-  nacos:
-    image: nacos/nacos-server:v2.3.0
-    container_name: nacos
-    environment:
-      MODE: standalone
-      SPRING_DATASOURCE_PLATFORM: mysql
-      MYSQL_SERVICE_HOST: mysql
-      MYSQL_SERVICE_PORT: 3306
-      MYSQL_SERVICE_DB_NAME: nacos_config
-      MYSQL_SERVICE_USER: root
-      MYSQL_SERVICE_PASSWORD: Admin123.
-      JVM_XMS: 256m
-      JVM_XMX: 512m
-    depends_on:
-      - mysql
-    ports:
-      - "8848:8848"
-    restart: always
-
-  ## 📩 RabbitMQ 消息队列
+  # 📩 RabbitMQ（arm64）
   rabbitmq:
     image: rabbitmq:3-management
+    platform: "linux/arm64/v8"
     container_name: rabbitmq
     ports:
       - "5672:5672"
-      - "15672:15672"  # 管理页面
+      - "15672:15672"   # 管理页面
+    environment:
+      RABBITMQ_DEFAULT_USER: app
+      RABBITMQ_DEFAULT_PASS: app123
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
     restart: always
 
-  # ## 🌐 API 网关（Spring Cloud Gateway 示例）
-  # api-gateway:
-  #   build:
-  #     context: ./gateway
-  #   container_name: api-gateway
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     - nacos
-  #   restart: always
 
-  ## 🧍 Auth Service 用户认证服务
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    platform: "linux/amd64"             # 在 Apple Silicon 上跑 amd64 可行（会用 Rosetta）
+    container_name: nacos
+    environment:
+      # ---- 运行模式/端口 ----
+      MODE: standalone
+      NACOS_APPLICATION_PORT: "8848"    # 显式指定 server.port=8848
+      SERVER_PORT: "8848"               # 双保险（某些入口脚本也会识别这个）
+
+      # ---- 数据源：严格使用镜像内期望的 MYSQL_SERVICE_* 变量 ----
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_DATABASE_NUM: "1"
+      MYSQL_SERVICE_HOST: mysql
+      MYSQL_SERVICE_PORT: "3306"
+      MYSQL_SERVICE_DB_NAME: nacos_config
+      MYSQL_SERVICE_USER: nacos
+      MYSQL_SERVICE_PASSWORD: nacos123
+      # 这一串会被拼到 application.properties 的 db.url.0 里
+      MYSQL_SERVICE_DB_PARAM: "allowPublicKeyRetrieval=true&useSSL=false&characterEncoding=utf8&serverTimezone=Asia/Shanghai&connectTimeout=10000&socketTimeout=10000&autoReconnect=true"
+
+      # ---- JVM 内存可以适当放宽（Rosetta 下更稳）----
+      JVM_XMS: 512m
+      JVM_XMX: 1024m
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    ports:
+      - "8848:8848"
+
+    # 不依赖 curl/wget 的 TCP 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'cat </dev/null >/dev/tcp/127.0.0.1/8848'"]
+      interval: 10s
+      timeout: 5s
+      retries: 50
+
+    restart: always
+
+  # 🧍 Auth Service（你的服务）
   auth-service:
     build:
       context: .
@@ -75,56 +110,33 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/distribution_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=Admin123.
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/distribution_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: Admin123.
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      # 指定 Nacos（下划线而非连字符）
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      # 指定 RabbitMQ（不要用 localhost）
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: app
+      SPRING_RABBITMQ_PASSWORD: app123
+      SPRING_RABBITMQ_VIRTUAL_HOST: /
     depends_on:
-      - mysql
-      - redis
-      - nacos
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_started   # ← 放宽依赖，避免被健康检查卡住
+      rabbitmq:
+        condition: service_healthy
     restart: always
 
-  # ## 💼 Lead Service 客资服务
-  # lead-service:
-  #   build:
-  #     context: ./lead-service
-  #   container_name: lead-service
-  #   ports:
-  #     - "8082:8082"
-  #   depends_on:
-  #     - mysql
-  #     - nacos
-  #   restart: always
-
-  # ## 💰 Deal Service 成交与佣金
-  # deal-service:
-  #   build:
-  #     context: ./deal-service
-  #   container_name: deal-service
-  #   ports:
-  #     - "8083:8083"
-  #   depends_on:
-  #     - mysql
-  #     - nacos
-  #     - rabbitmq
-  #   restart: always
-
-  # ## 📦 Promotion Service 推广任务
-  # promotion-service:
-  #   build:
-  #     context: ./promotion-service
-  #   container_name: promotion-service
-  #   ports:
-  #     - "8084:8084"
-  #   depends_on:
-  #     - mysql
-  #     - nacos
-  #   restart: always
-
-  ## 📊 Swagger 文档（可选）
+  # 📊 Swagger 文档（本地 build，镜像有 arm64 变体）
   api-docs:
     build:
       context: ./api-docs

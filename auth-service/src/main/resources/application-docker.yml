@@ -6,8 +6,7 @@ server:
 spring:
   application:
     name: auth-service
-  
-  # Nacos配置
+
   cloud:
     nacos:
       discovery:
@@ -19,15 +18,13 @@ spring:
         namespace: public
         group: DEFAULT_GROUP
         file-extension: yaml
-  
-  # 数据库配置
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://mysql:3306/distribution?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://mysql:3306/distribution_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
     username: root
     password: Admin123.
-    
-  # Redis配置
+
   redis:
     host: redis
     port: 6379
@@ -40,23 +37,32 @@ spring:
         max-idle: 8
         min-idle: 0
 
-# SpringDoc配置
+# 暴露健康检查端点
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
-    path: /swagger-ui.html
+    # 访问 http://localhost:8081/auth/swagger-ui/index.html
+    path: /swagger-ui/index.html
     tags-sorter: alpha
     operations-sorter: alpha
   packages-to-scan: com.example
   paths-to-match: /**
 
-# JWT配置
 jwt:
   secret: mySecretKey123456789012345678901234567890
   expiration: 86400000 # 24小时
 
-# 阿里云SMS配置
 aliyun:
   sms:
     access-key-id: ${ALIYUN_SMS_ACCESS_KEY_ID:your-access-key-id}
@@ -65,7 +71,6 @@ aliyun:
     register-template-code: ${ALIYUN_SMS_REGISTER_TEMPLATE:SMS_123456789}
     endpoint: dysmsapi.aliyuncs.com
 
-# 日志配置
 logging:
   level:
     com.example: DEBUG
