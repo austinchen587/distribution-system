@@ -1,13 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-          https://maven.apache.org/xsd/settings-1.0.0.xsd">
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
   <mirrors>
+    <!-- 阿里云公共仓库（覆盖 central） -->
     <mirror>
-      <id>aliyunmaven</id>
-      <mirrorOf>*</mirrorOf>
+      <id>aliyun</id>
       <name>Aliyun Maven</name>
       <url>https://maven.aliyun.com/repository/public</url>
+      <mirrorOf>central,*</mirrorOf>
+    </mirror>
+    <!-- 华为云（兜底） -->
+    <mirror>
+      <id>huaweicloud</id>
+      <name>Huawei Cloud Maven</name>
+      <url>https://repo.huaweicloud.com/repository/maven/</url>
+      <mirrorOf>central,*</mirrorOf>
     </mirror>
   </mirrors>
+
+  <!-- 提高容器内的超时与失败重试 -->
+  <profiles>
+    <profile>
+      <id>tuned-timeouts</id>
+      <properties>
+        <!-- 请求超时（毫秒） -->
+        <maven.wagon.http.connectionTimeout>30000</maven.wagon.http.connectionTimeout>
+        <maven.wagon.http.retryHandler.class>default</maven.wagon.http.retryHandler.class>
+        <maven.wagon.http.retryHandler.requestSentEnabled>true</maven.wagon.http.retryHandler.requestSentEnabled>
+        <maven.wagon.http.retryHandler.count>5</maven.wagon.http.retryHandler.count>
+        <!-- 使用 TLSv1.2，避免握手不兼容 -->
+        <https.protocols>TLSv1.2,TLSv1.3</https.protocols>
+      </properties>
+      <repositories>
+        <repository>
+          <id>central</id>
+          <name>Maven Central</name>
+          <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>tuned-timeouts</activeProfile>
+  </activeProfiles>
+
+  <!-- 如需代理，取消注释并填写
+  <proxies>
+    <proxy>
+      <id>corp-proxy</id>
+      <active>true</active>
+      <protocol>http</protocol>
+      <host>your.proxy.host</host>
+      <port>8080</port>
+    </proxy>
+  </proxies>
+  -->
 </settings>

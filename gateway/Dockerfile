@@ -1,53 +1,61 @@
-# 基础镜像选择说明：
-# 1. openjdk:8-jdk-alpine - 使用Java 8是因为父pom.xml中配置的java.version=1.8
-# 2. alpine版本 - 基于Alpine Linux的轻量级镜像，体积小，安全性高，适合微服务部署
-# 3. 如果需要更高版本的Java，可以修改为：
-#    - openjdk:11-jdk-alpine (Java 11 LTS版本)
-#    - openjdk:17-jdk-alpine (Java 17 LTS版本，推荐)
-#    - openjdk:21-jdk-alpine (Java 21 LTS版本，最新)
-FROM openjdk:8-jdk-alpine
+# =========================
+# 1) Builder
+# =========================
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 
-# 设置时区为上海时间，保持与应用配置一致
-RUN apk add --no-cache tzdata && \
-    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    echo "Asia/Shanghai" > /etc/timezone && \
-    apk del tzdata
+# 这里加环境变量
+ENV MAVEN_OPTS="-Dhttps.protocols=TLSv1.2,TLSv1.3 -Djava.net.preferIPv4Stack=true"
 
-# 创建临时文件挂载点，用于Spring Boot的临时文件
-VOLUME /tmp
 
-# JVM参数配置说明：
-# JAVA_OPTS - JVM启动参数，可通过docker-compose或k8s配置传入
-# 常用参数示例：
-# -Xms256m -Xmx512m : 设置JVM堆内存最小256MB，最大512MB
-# -XX:+UseG1GC : 使用G1垃圾收集器（推荐用于低延迟应用）
-# -Djava.security.egd=file:/dev/./urandom : 加快随机数生成，提升启动速度
-ENV JAVA_OPTS="-Djava.security.egd=file:/dev/./urandom"
+WORKDIR /app
 
-# 应用参数配置说明：
-# APP_OPTS - Spring Boot应用参数，可动态传入
-# 常用参数示例：
-# --spring.profiles.active=docker : 激活docker配置文件
-# --server.port=8080 : 动态修改端口
-# --spring.cloud.nacos.discovery.server-addr=nacos:8848 : 动态配置Nacos地址
-ENV APP_OPTS=""
+# 如需加速，取消下一行注释并确保仓库根目录有 settings.xml（阿里云镜像）
+COPY settings.xml /root/.m2/settings.xml
 
-# 暴露网关服务端口
+# 先拷父/子 POM（利用缓存）
+COPY pom.xml ./                                  
+COPY common/pom.xml common/pom.xml
+COPY data-access/pom.xml data-access/pom.xml
+COPY gateway/pom.xml gateway/pom.xml
+
+# 安装父 POM（非递归），让各子模块能找到 parent
+RUN mvn -B -N -Dmaven.test.skip=true install
+
+# 预热并安装 common（完全跳过测试编译）
+RUN mvn -B -Dmaven.test.skip=true -f common/pom.xml dependency:go-offline
+COPY common/src/ common/src/
+RUN mvn -B -Dmaven.test.skip=true -f common/pom.xml clean install
+
+# 如果 gateway 依赖 data-access，一并安装
+RUN mvn -B -Dmaven.test.skip=true -f data-access/pom.xml dependency:go-offline
+COPY data-access/src/ data-access/src/
+RUN mvn -B -Dmaven.test.skip=true -f data-access/pom.xml clean install
+
+# 预热 gateway 依赖
+RUN mvn -B -Dmaven.test.skip=true -f gateway/pom.xml dependency:go-offline
+
+# 拷贝 gateway 源码并仅构建 gateway
+COPY gateway/src/ gateway/src/
+RUN mvn -B -Dmaven.test.skip=true -f gateway/pom.xml clean package
+
+
+# =========================
+# 2) Runtime
+# =========================
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+
+# 设置时区（可选）
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ >/etc/timezone
+
+# 非 root 运行（幂等创建：存在则跳过）
+RUN if ! getent group spring >/dev/null; then groupadd spring; fi && \
+    if ! id -u spring >/dev/null 2>&1; then useradd -m -g spring -s /bin/bash spring; fi
+USER spring:spring
+
+# 复制打包产物
+COPY --from=builder /app/gateway/target/gateway-*.jar /app/app.jar
+
 EXPOSE 8080
-
-# 复制编译后的jar包到容器中
-# 使用通配符以适应不同版本号
-COPY target/gateway-*.jar app.jar
-
-# 健康检查配置
-# 每30秒检查一次，超时3秒，连续3次失败则认为不健康
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
-
-# 启动命令说明：
-# 1. 使用sh -c 执行，确保环境变量正确解析
-# 2. $JAVA_OPTS 在java命令之后，用于JVM参数
-# 3. $APP_OPTS 在jar包之后，用于Spring Boot参数
-# 4. 完整启动命令示例：
-#    java -Xms256m -Xmx512m -jar /app.jar --spring.profiles.active=docker
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app.jar $APP_OPTS"]
+ENTRYPOINT ["java","-jar","/app/app.jar"]

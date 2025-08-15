@@ -59,18 +59,16 @@ services:
       retries: 30
     restart: always
 
-
+  # 📚 Nacos
   nacos:
     image: nacos/nacos-server:v2.3.0
     platform: "linux/amd64"             # 在 Apple Silicon 上跑 amd64 可行（会用 Rosetta）
     container_name: nacos
     environment:
-      # ---- 运行模式/端口 ----
       MODE: standalone
-      NACOS_APPLICATION_PORT: "8848"    # 显式指定 server.port=8848
-      SERVER_PORT: "8848"               # 双保险（某些入口脚本也会识别这个）
+      NACOS_APPLICATION_PORT: "8848"
+      SERVER_PORT: "8848"
 
-      # ---- 数据源：严格使用镜像内期望的 MYSQL_SERVICE_* 变量 ----
       SPRING_DATASOURCE_PLATFORM: mysql
       MYSQL_DATABASE_NUM: "1"
       MYSQL_SERVICE_HOST: mysql
@@ -78,10 +76,8 @@ services:
       MYSQL_SERVICE_DB_NAME: nacos_config
       MYSQL_SERVICE_USER: nacos
       MYSQL_SERVICE_PASSWORD: nacos123
-      # 这一串会被拼到 application.properties 的 db.url.0 里
       MYSQL_SERVICE_DB_PARAM: "allowPublicKeyRetrieval=true&useSSL=false&characterEncoding=utf8&serverTimezone=Asia/Shanghai&connectTimeout=10000&socketTimeout=10000&autoReconnect=true"
 
-      # ---- JVM 内存可以适当放宽（Rosetta 下更稳）----
       JVM_XMS: 512m
       JVM_XMX: 1024m
 
@@ -92,7 +88,6 @@ services:
     ports:
       - "8848:8848"
 
-    # 不依赖 curl/wget 的 TCP 健康检查
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'cat </dev/null >/dev/tcp/127.0.0.1/8848'"]
       interval: 10s
@@ -101,7 +96,7 @@ services:
 
     restart: always
 
-  # 🧍 Auth Service（你的服务）
+  # 🧍 Auth Service
   auth-service:
     build:
       context: .
@@ -116,10 +111,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: Admin123.
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
-      # 指定 Nacos（下划线而非连字符）
       SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
       SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
-      # 指定 RabbitMQ（不要用 localhost）
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: app
@@ -131,16 +124,29 @@ services:
       redis:
         condition: service_healthy
       nacos:
-        condition: service_started   # ← 放宽依赖，避免被健康检查卡住
+        condition: service_started
       rabbitmq:
         condition: service_healthy
     restart: always
 
-  # 📊 Swagger 文档（本地 build，镜像有 arm64 变体）
+  # 📊 Swagger 文档
   api-docs:
     build:
       context: ./api-docs
     container_name: api-docs
     ports:
       - "8090:80"
+    restart: always
+
+  # 🌐 Gateway
+  gateway:
+    build:
+      context: .
+      dockerfile: ./gateway/Dockerfile
+    container_name: gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - nacos
     restart: always
